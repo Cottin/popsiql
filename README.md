@@ -1,4 +1,6 @@
-# popsiql - Sweet and delicious "data"-queries in javascript
+# popsiql
+
+**Sweet and delicious "data"-queries in javascript**
 
 If you have simple querying needs and want to have a unified way of querying your data independent of what data layer you choose, popsiql might be a tasty treat for you.
 
@@ -21,10 +23,11 @@ app.get '/api/employee', (req, res) ->
 
 	# if you use SQL
 	sqlQuery = popsiql.toSQL(query) # "SELECT ... WHERE name LIKE 'jo%'"
-	db.execute sqlQuery
+	db.execute(sqlQuery)
 
 	# if you use mongo
 	{find} = popsiql.toMongo(query) # {find: {name: {$regex: 'jo.*'}}}
+	db.collection('...').find(find)
 ```
 
 
