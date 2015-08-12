@@ -1,0 +1,21 @@
+{
+  "name": "popsiql",
+  "version": "0.1.0",
+  "description": "Sweet and delicious \"data\"-queries in javascript",
+  "main": "index.coffee",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha --watch --compilers coffee:coffee-script/register"
+  },
+  "keywords": [
+    "sql",
+    "mongodb"
+  ],
+  "author": "Victor Cottin",
+  "license": "MIT",
+  "dependencies": {
+    "ramda": "^0.17.1"
+  }
+}
