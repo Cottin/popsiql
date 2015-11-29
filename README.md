@@ -32,7 +32,7 @@ app.get '/api/employee', (req, res) ->
 	db.collection('...').find(find)
 ```
 
-Here is ___a spec___ some example queries:
+Here is ~~a spec~~ some **example queries**:
 
 ```
 {users: {age: {eq: 30}}}
