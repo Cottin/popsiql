@@ -1,5 +1,6 @@
 {compose, contains, eq, find, fromPairs, functions, gt, gte, lt, lte, map, mapObj, replace, toPairs, values} = require 'ramda' # auto_require:ramda
-{predicates} = require './popsiql'
+{predicates} = require './query'
+{mergeMany} = require 'ramda-extras'
 
 # mappings between popsiql predicate/values to mongo query
 _mongoMapping =
@@ -11,10 +12,10 @@ _mongoMapping =
 	gte: (v) -> ['$gte', v]
 	lt: (v) -> ['$lt', v]
 	lte: (v) -> ['$lte', v]
-	like: (v) -> ['$regex', replace(/%/g, '.*', v)]
+	like: (v) -> ['$regex', new RegExp(replace(/%/g, '.*', v), 'i')]
 
 # :: [k, v] -> [k2, v2]
-# transforms a popsiql predicate-value-pair to a monto query
+# transforms a popsiql predicate-value-pair to a mongo query
 _queryToMongoQuery = ([k, v]) ->
 	if ! contains k, predicates then return null
 	return _mongoMapping[k](v)
@@ -27,14 +28,20 @@ _transformPredicates = compose fromPairs, map(_queryToMongoQuery), toPairs
 # takes a popsiql query and returns the parts of the corresponding mongo query
 toMongo = (query) -> 
 	find = mapObj _transformPredicates, query.where
-	return {find}
+	skip = if query.start then {skip: parseInt(query.start)}
+	limit = if query.max then {limit: parseInt(query.max)}
+	return mergeMany {find}, skip, limit
 
 # TODO: kanske denna får man göra själv?? Ej med i popsiql biblioteket??
 # :: o -> o -> Thenable
 # takes a popsiql query and returns a functions that expects a mongo native driver
 # collection on which it applies the mongo query transformed from the popsiql query
 toMongoAndExecute = (query) -> (collection) ->
-	{find} = toMongo query
-	return collection.find(find)
+	{find, skip, limit} = toMongo query
+	x = collection
+	if find then x = x.find(find)
+	if skip then x = x.skip(skip)
+	if limit then x = x.limit(limit)
+	return x
 
 module.exports = {toMongo, toMongoAndExecute}

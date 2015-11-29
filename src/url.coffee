@@ -1,14 +1,16 @@
-{contains, createMapEntry, eq, map, mapObj, match, reduce, split, toPairs, where} = require 'ramda' # auto_require:ramda
-{cc} = require 'ramda-extras'
+{add, chain, compose, concat, contains, createMapEntry, eq, join, length, map, mapObj, match, mergeAll, omit, pick, split, toPairs, values, where} = require 'ramda' # auto_require:ramda
+{isa, cc, mergeMany} = require 'ramda-extras'
 
-{predicates} = require './popsiql'
+{predicates, parameters} = require './query'
 
 # :: s -> o
 # parses a string to an object where predicate is key
 # eg. 'eq(abc)' -> {eq: 'abc'}
 _parse = (x) ->
+	if isa(Object, x) then return cc mergeAll, map(_parse), values, x
+	else if !isa(String, x) then return x
 	matches = match /([a-z]+)\((.+)\)/i, x
-	if !matches then return null
+	if length(matches) == 0 then return x
 
 	[_, pred, value] = matches
 	if ! contains pred, predicates then return null
@@ -18,22 +20,29 @@ _parse = (x) ->
 	else return createMapEntry pred, value
 
 # :: o -> o
-# takes a urlQuery and parses it to popsiql
+# takes a urlQuery and parses it to popsiql query
 # eg. {a: 'eq(abc)'} -> {where: {a: {eq: 'abc'}}}
 fromUrl = (urlQuery) ->
-	where = mapObj _parse, urlQuery
-	return {where}
+	params = pick parameters, urlQuery
+	where = mapObj _parse, omit(parameters, urlQuery)
+	return mergeMany {where}, params
 
-# note: maybe this is unneccessary? I might just use it with query in yun
-toUrl = (popsiql) ->
-	buildString = (mem, [k, v]) ->
-		start = if mem == '' then '' else mem + '&'
-		pairToString = ([k, v]) -> "#{k}(#{v})"
-		valueAsString = cc map(pairToString), toPairs, v
-		return "#{start}#{k}=#{valueAsString}"
-	str = cc reduce(buildString, ''), toPairs, popsiql.where
-	return str
 
+# :: o -> s
+# takes a popsiql query and transforms it to a url query string
+toUrl = (query) ->
+	predToString = ([k, v]) -> "#{k}(#{v})"
+	predObjectToString = compose map(predToString), toPairs
+	whereFieldToString = ([k, pred]) ->
+		if isa(Object, pred) then cc map(add("#{k}=")), predObjectToString(pred)
+		else "#{k}=#{pred}"
+	wheres = cc chain(whereFieldToString), toPairs, query.where
+
+	# LIMITS
+	limits = cc map(join('=')), toPairs, pick(parameters), query
+
+	nonEmptyParts = concat(wheres, limits)
+	return join '&', nonEmptyParts
 
 module.exports = {fromUrl, toUrl}
 

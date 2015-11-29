@@ -2,12 +2,12 @@
   "name": "popsiql",
   "version": "0.1.0",
   "description": "Sweet and delicious \"data\"-queries in javascript",
-  "main": "index.coffee",
+  "main": "src/popsiql.coffee",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --watch --compilers coffee:coffee-script/register"
+    "test": "mocha '**/test__*.coffee' --watch --compilers coffee:coffee-script/register"
   },
   "keywords": [
     "sql",
@@ -17,5 +17,20 @@
   "license": "MIT",
   "dependencies": {
     "ramda": "^0.17.1"
-  }
+  },
+  "devDependencies": {
+    "coffee-loader": "^0.7.2",
+    "coffee-script": "^1.9.3",
+    "react-hot-loader": "^1.2.7",
+    "webpack": "^1.9.6",
+    "webpack-dev-server": "^1.8.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cottin/popsiql.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cottin/popsiql/issues"
+  },
+  "homepage": "https://github.com/Cottin/popsiql"
 }

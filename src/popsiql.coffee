@@ -1,6 +1,12 @@
-{eq, gt, gte, lt, lte} = require 'ramda' # auto_require:ramda
+{fromUrl, toUrl} = url = require './url'
+{toMongo, toMongoAndExecute} = mongo = require './mongo'
+{toFirebase, toFirebaseAndExecute} = firebase = require './firebase'
 
-# supported predicates
-predicates = ['eq', 'neq', 'in', 'notIn', 'lt', 'lte', 'gt', 'gte', 'like']
-
-module.exports = {predicates}
+module.exports = {
+	fromUrl
+	toUrl
+	toMongo
+	toMongoAndExecute
+	toFirebase
+	toFirebaseAndExecute
+}
