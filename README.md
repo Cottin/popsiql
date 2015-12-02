@@ -34,61 +34,72 @@ app.get '/api/employee', (req, res) ->
 
 Here is ~~a spec~~ some **example queries**:
 
+
+
+Simple query
 ```
-# Simple query
 {users: {age: {eq: 30}}}
-toUrl 			# users?age=eq(30)
-toMSSQL			# select * from users where age = 30
-toMongo			# {users: {find: {age: {$eq: 30}}}}
-runMongo		# cols['users'].find({age: {$eq: 30}})
-toFirebase	# {users: {orderByChild: 'age', equalTo: 30}}
-runFirebase	# ref.child('users').orderByChild('age').equalTo(30)
+toUrl         # users?age=eq(30)
+toMSSQL       # select * from users where age = 30
+toMongo       # {users: {find: {age: {$eq: 30}}}}
+runMongo      # cols['users'].find({age: {$eq: 30}})
+toFirebase    # {users: {orderByChild: 'age', equalTo: 30}}
+runFirebase   # ref.child('users').orderByChild('age').equalTo(30)
+```
 
-# Like-query
+Like-query
+```
 {users: {name: {like: 'an%'}}}
-toUrl 			# users?name=like(an%)
-toMSSQL			# select * from users where name like 'an%'
-toMongo			# {users: {find: {name: {$regex: 'jo.*'}}}}
-runMongo		# cols['users'].find({name: {$regex: 'jo.*'}})
-toFirebase	# {users: {orderByChild: 'name', startAt: 'an', endAt: 'an\uf8ff'}}
-runFirebase	# ref.child('users').orderByChild('name').startAt('an').endAt('an\uf8ff')
+toUrl         # users?name=like(an%)
+toMSSQL       # select * from users where name like 'an%'
+toMongo       # {users: {find: {name: {$regex: 'jo.*'}}}}
+runMongo      # cols['users'].find({name: {$regex: 'jo.*'}})
+toFirebase    # {users: {orderByChild: 'name', startAt: 'an', endAt: 'an\uf8ff'}}
+runFirebase   # ref.child('users').orderByChild('name').startAt('an').endAt('an\uf8ff')
+```
 
-# In-query
+In-query
+```
 {users: {id: {in: [1, 2, 3]}}}
-toUrl 			# users?id=in(1,2,3)
-toMSSQL			# select * from users where id in (1,2,3)
-toMongo			# {users: {find: {_id: {$in: [1,2,3]}}}}
-runMongo		# cols['users'].find({_id: {$in: [1,2,3]}})
-toFirebase	# {users: [1, 2, 3]}
-runFirebase	# [ref.child('users/1'), ref.child('users/2'), ref.child('users/3')]
+toUrl         # users?id=in(1,2,3)
+toMSSQL       # select * from users where id in (1,2,3)
+toMongo       # {users: {find: {_id: {$in: [1,2,3]}}}}
+runMongo      # cols['users'].find({_id: {$in: [1,2,3]}})
+toFirebase    # {users: [1, 2, 3]}
+runFirebase   # [ref.child('users/1'), ref.child('users/2'), ref.child('users/3')]
+```
 
-# Multiple predicates
+Multiple predicates
+```
 {users: {age: {gt: 25, lt: 30}}}
-toUrl 			# users?age=gt(25)&age=lt(30)
-toMSSQL			# select * from users where age > 25 and age < 30
-toMongo			# {users: {find: {age: {$gt: 25, $lt: 30}}}}
-runMongo		# cols['users'].find({age: {$gt: 25, $lt: 30}})
-toFirebase	# Error 'Firebase adapter only supports one predicate in where for the moment'
-runFirebase	# Error 'Firebase adapter only supports one predicate in where for the moment'
+toUrl         # users?age=gt(25)&age=lt(30)
+toMSSQL       # select * from users where age > 25 and age < 30
+toMongo       # {users: {find: {age: {$gt: 25, $lt: 30}}}}
+runMongo      # cols['users'].find({age: {$gt: 25, $lt: 30}})
+toFirebase    # Error 'Firebase adapter only supports one predicate in where for the moment'
+runFirebase   # Error 'Firebase adapter only supports one predicate in where for the moment'
+```
 
-# Multiple properties
+Multiple properties
+```
 {users: {age: {lt: 30}, sex: {eq: 'female'}}}
-toUrl 			# users?age=lt(30)&sex=eq(female)
-toMSSQL			# select * from users where age < 30 and sex = 'female'
-toMongo			# {users: {find: {age: {$lt: 30}, sex: {$eq: 'female'}}}}
-runMongo		# cols['users'].find({age: {$lt: 30}, sex: {$eq: 'female'}})
-toFirebase	# Error 'Firebase only supports one key in where clause'
-runFirebase	# Error 'Firebase only supports one key in where clause'
+toUrl         # users?age=lt(30)&sex=eq(female)
+toMSSQL       # select * from users where age < 30 and sex = 'female'
+toMongo       # {users: {find: {age: {$lt: 30}, sex: {$eq: 'female'}}}}
+runMongo      # cols['users'].find({age: {$lt: 30}, sex: {$eq: 'female'}})
+toFirebase    # Error 'Firebase only supports one key in where clause'
+runFirebase   # Error 'Firebase only supports one key in where clause'
+```
 
-# Order by
+Order by
+```
 {users: {age: {gt: 25}}, orderBy: 'name'}
-toUrl 			# users?age=gt(25)&orderBy=(name)
-toMSSQL			# select * from users where age > 25 order by 'name'
-toMongo			# {users: {find: {age: {$gt: 25}}, sort: {name: 1}}}
-runMongo		# cols['users'].find({age: {$gt: 25}}).sort({name: 1})
-toFirebase	# Error 'Firebase does not support order by'
-runFirebase	# Error 'Firebase does not support order by'
-
+toUrl         # users?age=gt(25)&orderBy=(name)
+toMSSQL       # select * from users where age > 25 order by 'name'
+toMongo       # {users: {find: {age: {$gt: 25}}, sort: {name: 1}}}
+runMongo      # cols['users'].find({age: {$gt: 25}}).sort({name: 1})
+toFirebase    # Error 'Firebase does not support order by'
+runFirebase   # Error 'Firebase does not support order by'
 ```
 
 
