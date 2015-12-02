@@ -1,6 +1,6 @@
-{__, complement, contains, eq, functions, gt, gte, head, isNil, keys, last, length, lt, lte, pickBy, toPairs, where} = require 'ramda' # auto_require:ramda
+{equals, __, complement, contains, createMapEntry, eq, functions, gt, gte, head, isNil, keys, last, length, lt, lte, max, omit, pickBy, toPairs, where} = require 'ramda' # auto_require:ramda
 {predicates} = require './query'
-{mergeMany, reduceObj, cc, dropLast} = require 'ramda-extras'
+{mergeMany, reduceObj, cc, dropLast, ymap, isa} = require 'ramda-extras'
 
 # s, s, a -> o
 # Given a key, value and predicate returns the parse result or throws an error
@@ -8,7 +8,10 @@ _parseUnit = (k, pred, v) ->
 	switch pred
 		when 'eq' then return {orderByChild: k, equalTo: v}
 		when 'neq' then throw new Error 'not equal is not supported by firebase'
-		when 'in' then throw new Error 'in is not supported by firebase'
+		when 'in'
+			if k != 'id'
+				throw new Error 'predicate in can only be used for property id'
+			return {inArray: v}
 		when 'notIn' then throw new Error 'not in is not supported by firebase'
 		when 'gt' then throw new Error 'gt is not supported by firebase, BUT gte is!'
 		when 'gte' then return {orderByChild: k, startAt: v}
@@ -28,7 +31,7 @@ _parseUnit = (k, pred, v) ->
 
 # o -> o   Parses the where component of the popsiql query
 _parseWhere = (where) ->
-	if ! where then return {}
+	if ! where || cc equals(0), length, keys, where then return {}
 
 	# Firebase per 25 nov 2015 only supports ordering by one key
 	# https://www.firebase.com/docs/web/api/query/orderbychild.html
@@ -47,7 +50,13 @@ _parseWhere = (where) ->
 # o -> o
 # Takes a popsiql query and returns the parts of the corresponding firebase subscription
 toFirebase = (query) -> 
-	{orderByChild, startAt, endAt, equalTo} = _parseWhere query.where
+	property = omit ['start', 'end', 'max'], query
+	if cc gt(__, 1), length, keys, property
+		throw new Error 'Firebase only supports one property per query'
+
+	[k, v] = cc head, toPairs, property
+
+	{orderByChild, startAt, endAt, equalTo, inArray} = _parseWhere v
 
 	if startAt && query.start
 		throw new Error 'You cannot use a where predicate that causes a startAt and 
@@ -55,6 +64,8 @@ toFirebase = (query) ->
 	if endAt && query.end
 		throw new Error 'You cannot use a where predicate that causes a endAt and at 
 		the same time use end in your query since the will override each other'
+
+	if inArray then return createMapEntry k, inArray
 
 	result = {
 		orderByChild
@@ -64,14 +75,17 @@ toFirebase = (query) ->
 		limitToFirst: query.max
 	}
 
-	return pickBy complement(isNil), result
+	return cc createMapEntry(k), pickBy(complement(isNil)), result
 
 # o -> o -> o
 # Takes a popsiql query and returns a functions that expects a firebase ref
 # on which it applies the firebase parts derived from the parsing of the popsiql query
 toFirebaseAndExecute = (query) -> (ref) ->
-	{orderByChild, equalTo, startAt, endAt, limitToFirst} = toFirebase query
-	x = ref
+	[k, v] = cc head, toPairs, toFirebase, query
+	if isa Array, v then return ymap v, (x) -> ref.child "#{k}/#{x}"
+
+	{orderByChild, equalTo, startAt, endAt, limitToFirst} = v
+	x = ref.child(k)
 	if orderByChild then x = x.orderByChild orderByChild
 	if equalTo then x = x.equalTo equalTo
 	if startAt then x = x.startAt startAt
