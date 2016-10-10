@@ -16,7 +16,9 @@
   "author": "Victor Cottin",
   "license": "MIT",
   "dependencies": {
-    "ramda": "^0.17.1"
+    "q": "^1.4.1",
+    "ramda": "^0.19.1",
+    "ramda-extras": "^0.2.3"
   },
   "devDependencies": {
     "coffee-loader": "^0.7.2",

@@ -1,4 +1,4 @@
-{add, chain, compose, concat, contains, createMapEntry, eq, join, length, map, mapObj, match, mergeAll, omit, pick, split, toPairs, values, where} = require 'ramda' # auto_require:ramda
+{add, chain, compose, concat, contains, join, length, map, match, mergeAll, objOf, omit, pick, split, toPairs, values, where} = require 'ramda' # auto_require:ramda
 {isa, cc, mergeMany} = require 'ramda-extras'
 
 {predicates, parameters} = require './query'
@@ -16,15 +16,15 @@ _parse = (x) ->
 	if ! contains pred, predicates then return null
 
 	if pred == 'in' || pred == 'notIn'
-		return createMapEntry pred, split(',', value)
-	else return createMapEntry pred, value
+		return objOf pred, split(',', value)
+	else return objOf pred, value
 
 # :: o -> o
 # takes a urlQuery and parses it to popsiql query
 # eg. {a: 'eq(abc)'} -> {where: {a: {eq: 'abc'}}}
 fromUrl = (urlQuery) ->
 	params = pick parameters, urlQuery
-	where = mapObj _parse, omit(parameters, urlQuery)
+	where = map _parse, omit(parameters, urlQuery)
 	return mergeMany {where}, params
 
 

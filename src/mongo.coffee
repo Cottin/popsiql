@@ -1,4 +1,4 @@
-{compose, contains, eq, find, fromPairs, functions, gt, gte, lt, lte, map, mapObj, replace, toPairs, values} = require 'ramda' # auto_require:ramda
+{compose, contains, eq, find, fromPairs, functions, gt, gte, lt, lte, map, replace, toPairs, values} = require 'ramda' # auto_require:ramda
 {predicates} = require './query'
 {mergeMany} = require 'ramda-extras'
 
@@ -27,7 +27,7 @@ _transformPredicates = compose fromPairs, map(_queryToMongoQuery), toPairs
 # :: o -> o
 # takes a popsiql query and returns the parts of the corresponding mongo query
 toMongo = (query) -> 
-	find = mapObj _transformPredicates, query.where
+	find = map _transformPredicates, (query.where || {})
 	skip = if query.start then {skip: parseInt(query.start)}
 	limit = if query.max then {limit: parseInt(query.max)}
 	return mergeMany {find}, skip, limit
