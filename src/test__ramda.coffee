@@ -1,6 +1,6 @@
 assert = require('assert')
 {toRamda} = require './ramda2'
-{flip, gt, gte, lt, lte, set, where} = require 'ramda' #auto_require:ramda
+{empty, flip, gt, gte, lt, lte, set, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
@@ -53,6 +53,9 @@ describe 'ramda', ->
         it 'like (double %', ->
           f = toRamda {get: 'customer', where: {a: {like: '%i%'}}}
           deepEq [{a: 'victor'}, {a: 'victoria'}, {a: 'elin'}], f(MOCK)
+        it 'null not empty', ->
+          f = toRamda {get: 'user', where: {a: {eq: 9}}}
+          eq null, f(MOCK)
     describe 'set', ->
       it 'simple', ->
         f = toRamda {set: {user: {a: 2, b: 't'}}, where: {a: 1}}

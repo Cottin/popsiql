@@ -2,7 +2,7 @@
 {toMongo, toMongoAndExecute} = mongo = require './mongo'
 {toFirebase, toFirebaseAndExecute} = firebase = require './firebase'
 {toSuperGlue} = superglue = require './superglue'
-# {toRamda} = ramda = require './ramda'
+# {toRamda} = ramda = require './ramda' TODO: ta bort
 {toRamda} = ramda = require './ramda2'
 {toSql} = require './sql'
 {toNestedQuery, toFlatQuery, isValidQuery} = require './query'

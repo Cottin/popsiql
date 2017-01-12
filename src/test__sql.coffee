@@ -34,10 +34,10 @@ describe 'sql', ->
         set a = 1, b = \'t\'
         where id = 5'
         eq sql, toSql {set: {user: {a: 1, b: 't'}}, where: {id: 5}}
-    describe 'push', ->
-      it 'simple', ->
-        sql = 'insert into user (a, b)
-        values (1, \'t\')'
-        eq sql, toSql {push: {user: {a: 1, b: 't'}}}
+    # describe 'push', ->
+    #   it 'simple', ->
+    #     sql = 'insert into user (a, b)
+    #     values (1, \'t\')'
+    #     eq sql, toSql {push: {user: {a: 1, b: 't'}}}
 
 
