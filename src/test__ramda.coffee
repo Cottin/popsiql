@@ -1,6 +1,6 @@
 assert = require('assert')
 {toRamda} = require './ramda2'
-{empty, flip, gt, gte, lt, lte, set, where} = require 'ramda' #auto_require:ramda
+{empty, flip, gt, gte, lt, lte, project, set, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
@@ -9,6 +9,8 @@ throws = (re, f) -> assert.throws f, re
 MOCK =
   user: [{a: 1, b: 1}, {a: 2, b: 2}, {a: 3, b: 3}]
   customer: [{a: 'victor'}, {a: 'victoria'}, {a: 'elin'}]
+  project: {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}
+
 
 describe 'ramda', ->
   describe 'toRamda', ->
@@ -56,6 +58,15 @@ describe 'ramda', ->
         it 'null not empty', ->
           f = toRamda {get: 'user', where: {a: {eq: 9}}}
           eq null, f(MOCK)
+          
+      describe 'id', ->
+        it 'one', ->
+          f = toRamda {get: 'project', id: 1}
+          deepEq {1: {id: 1, a: 'a1'}}, f(MOCK)
+        it 'multiple', ->
+          f = toRamda {get: 'project', id: [1, 2]}
+          deepEq {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}, f(MOCK)
+
       describe 'special cases', ->
         it 'data is null (where)', ->
           f = toRamda {get: 'user', where: {a: {eq: 9}}}

@@ -34,15 +34,26 @@ _where = (query) ->
 	preds = cc flatten, map(toPreds), props
 	return filter allPass(preds)
 
+# a -> f   Builds a filter function for the id part of the query
+_whereId = (ids) ->
+	return filter (o) ->
+		if o && o.id && contains o.id, ids then true
+		else false
+
 # o -> f   Builds the get function from the query object
 _get = (query) -> (data) ->
 	data_ = getPath query.get, data
-	if isNil(data_) || isEmpty(data_)
-		return null
+	if isNil(data_) || isEmpty(data_) then return null
 
-	if query.where
+	{where, id} = query
+
+	if id
+		ids = if R.type(id) == 'Array' then id else [id]
+		data_ = _whereId(ids)(data_)
+	else if where
 		data_ = _where(query)(data_)
-		if isEmpty data_ then return null
+
+	if isNil(data_) || isEmpty(data_) then return null
 
 	{fields} = query
 	if fields then project fields, data_
