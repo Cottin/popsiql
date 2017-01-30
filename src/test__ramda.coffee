@@ -4,7 +4,7 @@ assert = require('assert')
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
-throws = (f) -> assert.throws f, Error
+throws = (re, f) -> assert.throws f, re
 
 MOCK =
   user: [{a: 1, b: 1}, {a: 2, b: 2}, {a: 3, b: 3}]
@@ -56,6 +56,19 @@ describe 'ramda', ->
         it 'null not empty', ->
           f = toRamda {get: 'user', where: {a: {eq: 9}}}
           eq null, f(MOCK)
+      describe 'special cases', ->
+        it 'data is null (where)', ->
+          f = toRamda {get: 'user', where: {a: {eq: 9}}}
+          eq null, f(null)
+        it 'data is null (fields)', ->
+          f = toRamda {get: 'user', fields: ['a']}
+          eq null, f(null)
+        it 'data is empty (where)', ->
+          f = toRamda {get: 'user', where: {a: {eq: 9}}}
+          eq null, f({})
+        it 'data is empty (fields)', ->
+          f = toRamda {get: 'user', fields: ['a']}
+          eq null, f({})
     describe 'set', ->
       it 'simple', ->
         f = toRamda {set: {user: {a: 2, b: 't'}}, where: {a: 1}}

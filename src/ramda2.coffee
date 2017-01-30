@@ -1,5 +1,5 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, equals, filter, findIndex, flatten, gt, gte, head, isEmpty, keys, lensPath, lt, lte, map, over, project, propEq, propSatisfies, props, replace, set, test, toPairs, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, equals, filter, findIndex, flatten, gt, gte, head, isEmpty, isNil, keys, lensPath, lt, lte, map, over, project, propEq, propSatisfies, props, replace, set, test, toPairs, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath} = require 'ramda-extras'
 co = compose
 util = require 'util'
@@ -37,6 +37,8 @@ _where = (query) ->
 # o -> f   Builds the get function from the query object
 _get = (query) -> (data) ->
 	data_ = getPath query.get, data
+	if isNil(data_) || isEmpty(data_)
+		return null
 
 	if query.where
 		data_ = _where(query)(data_)
