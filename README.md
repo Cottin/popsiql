@@ -1,6 +1,28 @@
 # popsiql
 
-plain objects producing simply implementable query language
+Plain Objects Producing Simply Implementable Query Languages
+
+Popsiql is a way of expressing a data-query as a simple javascript object. Popsiql consists of 2 things: the guidlines below and a core-specification of general purpose data-querying.
+
+## Guidlines
+
+	1. The data-query should be represented as a javascript object
+	2. Since there is no standardized way of how properties in an object is ordered across javascript engines (nor in the spec), naming of operations allowed in the data-query should be done so operations names don't collide.
+
+## Core specification
+
+### Operations
+The four core operations are `read`, `create`, `update` and `remove`.
+
+### Where-clasue
+eq | equals
+neq | not equals
+gt
+...
+
+
+
+
 
 
 # TO MOVE: Experimental:

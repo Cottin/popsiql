@@ -82,3 +82,5 @@ ___.toRamda = toRamda = (query) ->
 	if query.get then return _get query
 	else if query.set then return _set query
 	else if query.push then return _push query
+
+	throw new Error 'no valid operation found in query' + JSON.stringify(query)

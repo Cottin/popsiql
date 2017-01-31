@@ -14,6 +14,11 @@ MOCK =
 
 describe 'ramda', ->
   describe 'toRamda', ->
+    describe 'special cases', ->
+      it 'missing key operation', ->
+        throws /no valid operation found in query/, ->
+          f = toRamda {xxx: 'user'}
+        
     describe 'get', ->
       it 'simple', ->
         f = toRamda {get: 'user'}
