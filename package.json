@@ -1,6 +1,6 @@
 {
   "name": "popsiql",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Sweet and delicious \"data\"-queries in javascript",
   "main": "lib/popsiql.js",
   "scripts": {
