@@ -1,6 +1,6 @@
 assert = require('assert')
 {toRamda} = require './ramda2'
-{empty, flip, gt, gte, lt, lte, project, set, where} = require 'ramda' #auto_require:ramda
+{empty, flip, gt, gte, lt, lte, max, pluck, project, set, sort, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
@@ -10,6 +10,7 @@ MOCK =
   user: [{a: 1, b: 1}, {a: 2, b: 2}, {a: 3, b: 3}]
   customer: [{a: 'victor'}, {a: 'victoria'}, {a: 'elin'}]
   project: {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}
+  o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
 describe 'ramda', ->
@@ -71,6 +72,37 @@ describe 'ramda', ->
         it 'multiple', ->
           f = toRamda {get: 'project', id: [1, 2]}
           deepEq {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}, f(MOCK)
+
+      describe 'sort', ->
+        it 'asc', ->
+          f = toRamda {get: 'o', sort: 'n'}
+          deepEq ['a', 'b', 'b', 'c'], pluck('n', f(MOCK))
+        it 'desc', ->
+          f = toRamda {get: 'o', sort: [{n: 'desc'}]}
+          deepEq ['c', 'b', 'b', 'a'], pluck('n', f(MOCK))
+        it 'deXXsc', ->
+          f = toRamda {get: 'o', sort: [{n: 'deXXsc'}]}
+          throws /sort direction must be asc or desc/, -> f(MOCK)
+        it 'asc + desc', ->
+          f = toRamda {get: 'o', sort: [{n: 'asc'}, {id: 'desc'}]}
+          deepEq [2, 4, 1, 3], pluck('id', f(MOCK))
+        it 'asc (implicit) + desc', ->
+          f = toRamda {get: 'o', sort: ['n', {id: 'desc'}]}
+          deepEq [2, 4, 1, 3], pluck('id', f(MOCK))
+        it 'sort + fields', ->
+          f = toRamda {get: 'o', sort: 'n', fields: ['id']}
+          deepEq [{id: 2}, {id: 1}, {id: 4}, {id: 3}], f(MOCK)
+
+      describe 'pagination', ->
+        it 'max', ->
+          f = toRamda {get: 'o', max: 2}
+          deepEq [1, 2], pluck('id', values(f(MOCK)))
+        it 'max + start', ->
+          f = toRamda {get: 'o', max: 2, start: 1}
+          deepEq [2, 3], pluck('id', values(f(MOCK)))
+        it 'start', ->
+          f = toRamda {get: 'o', start: 1}
+          deepEq [2, 3, 4], pluck('id', values(f(MOCK)))
 
       describe 'special cases', ->
         it 'data is null (where)', ->

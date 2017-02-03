@@ -1,5 +1,5 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, equals, filter, findIndex, flatten, gt, gte, head, isEmpty, isNil, keys, lensPath, lt, lte, map, over, project, propEq, propSatisfies, props, replace, set, test, toPairs, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, drop, equals, filter, findIndex, flatten, gt, gte, head, isEmpty, isNil, keys, lensPath, lt, lte, map, max, over, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, values, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath} = require 'ramda-extras'
 co = compose
 util = require 'util'
@@ -55,9 +55,44 @@ _get = (query) -> (data) ->
 
 	if isNil(data_) || isEmpty(data_) then return null
 
+	{sort} = query
+	if sort
+		if type(sort) == 'Array'
+			toComparator = (a) ->
+				if type(a) == 'Object'
+					k = cc head, keys, a
+					v = a[k]
+					if v == 'desc' then return R.descend(prop(k))
+					else if v == 'asc' then return R.ascend(prop(k))
+					else throw new Error 'sort direction must be asc or desc, given: ' + v
+				else if type(a) == 'Array'
+					throw new Error 'invalid sort array given, elements cannot be arrays'
+				else
+					return R.ascend(prop(a))
+
+			comparators = map toComparator, sort
+			data_ = R.sortWith comparators, values(data_)
+		else
+			data_ = R.sortWith [R.ascend(prop(sort))], values(data_)
+
+	{start} = query
+	if start
+		if type(data_) == 'Object'
+			data_ = values data_
+		data_ = drop start, data_
+
+	{max} = query
+	if max
+		if type(data_) == 'Object'
+			data_ = values data_
+
+		data_ = take max, data_
+
 	{fields} = query
-	if fields then project fields, data_
-	else data_
+	if fields
+		data_ = project fields, data_
+	
+	return data_
 
 # o -> f   Returns a set function from the query object
 _set = (query) -> (data) ->
@@ -83,4 +118,4 @@ ___.toRamda = toRamda = (query) ->
 	else if query.set then return _set query
 	else if query.push then return _push query
 
-	throw new Error 'no valid operation found in query' + JSON.stringify(query)
+	throw new Error 'no valid operation found in query ' + JSON.stringify(query)
