@@ -1,5 +1,5 @@
-{add, chain, compose, concat, contains, join, length, map, match, mergeAll, objOf, omit, pick, split, toPairs, values, where} = require 'ramda' # auto_require:ramda
-{isa, cc, mergeMany} = require 'ramda-extras'
+{add, chain, compose, concat, contains, join, length, map, match, mergeAll, objOf, omit, pick, split, toPairs, values, where} = R = require 'ramda' # auto_require:ramda
+{cc, mergeMany} = require 'ramda-extras'
 
 {predicates, parameters} = require './query'
 
@@ -7,8 +7,8 @@
 # parses a string to an object where predicate is key
 # eg. 'eq(abc)' -> {eq: 'abc'}
 _parse = (x) ->
-	if isa(Object, x) then return cc mergeAll, map(_parse), values, x
-	else if !isa(String, x) then return x
+	if R.is(Object, x) then return cc mergeAll, map(_parse), values, x
+	else if !R.is(String, x) then return x
 	matches = match /([a-z]+)\((.+)\)/i, x
 	if length(matches) == 0 then return x
 
@@ -34,7 +34,7 @@ toUrl = (query) ->
 	predToString = ([k, v]) -> "#{k}(#{v})"
 	predObjectToString = compose map(predToString), toPairs
 	whereFieldToString = ([k, pred]) ->
-		if isa(Object, pred) then cc map(add("#{k}=")), predObjectToString(pred)
+		if R.is(Object, pred) then cc map(add("#{k}=")), predObjectToString(pred)
 		else "#{k}=#{pred}"
 	wheres = cc chain(whereFieldToString), toPairs, query.where
 

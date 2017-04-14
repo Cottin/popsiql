@@ -80,6 +80,19 @@ describe 'ramda', ->
         it 'desc', ->
           f = toRamda {get: 'o', sort: [{n: 'desc'}]}
           deepEq ['c', 'b', 'b', 'a'], pluck('n', f(MOCK))
+        it 'desc2', ->
+
+          mock2 =
+            o:
+              2:
+                id: 2
+                a: 'a2'
+              4:
+                id: 4
+                a: 'a4'
+
+          f = toRamda {get: 'o', sort: [{a: 'desc'}]}
+          console.log f(mock2)
         it 'deXXsc', ->
           f = toRamda {get: 'o', sort: [{n: 'deXXsc'}]}
           throws /sort direction must be asc or desc/, -> f(MOCK)
