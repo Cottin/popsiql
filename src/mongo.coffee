@@ -1,6 +1,6 @@
-{compose, contains, find, fromPairs, gt, gte, lt, lte, map, pair, replace, toPairs, values} = require 'ramda' # auto_require:ramda
+{assoc, compose, contains, dissoc, find, fromPairs, gt, gte, has, lt, lte, map, pair, replace, toPairs, values, where} = require 'ramda' # auto_require:ramda
 {predicates} = require './query'
-{mergeMany} = require 'ramda-extras'
+{cc, mergeMany} = require 'ramda-extras'
 
 # mappings between popsiql predicate/values to mongo query
 _mongoMapping =
@@ -27,7 +27,10 @@ _transformPredicates = compose fromPairs, map(_queryToMongoQuery), toPairs
 # :: o -> o
 # takes a popsiql query and returns the parts of the corresponding mongo query
 toMongo = (query) -> 
-	find = map _transformPredicates, (query.where || {})
+	where_ = query.where
+	if where_ && has 'id', where_
+		where_ = cc assoc('_id', where_['id']), dissoc('id'), where_
+	find = map _transformPredicates, (where_ || {})
 	skip = if query.start then {skip: parseInt(query.start)}
 	limit = if query.max then {limit: parseInt(query.max)}
 	return mergeMany {find}, (skip || {}), (limit || {})

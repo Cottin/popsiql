@@ -9,7 +9,7 @@ mockCollection =
   limit: (x) -> mergeMany @, {__limit: x}
 
 describe.only 'mongo', ->
-  describe 'toMongo', ->
+  describe.only 'toMongo', ->
     # it 'should be able to handle nulls', ->
     #   toMongoAnd null
 
@@ -63,3 +63,8 @@ describe.only 'mongo', ->
       query = fn mockCollection
       assert.equal query.__skip, 5
       assert.equal query.__limit, 15
+
+    it 'should translate id to _id', ->
+      fn = toMongoAndExecute {where: {id: {in: [1, 23, 456]}}}
+      query = fn mockCollection
+      assert.deepEqual query.__find._id.$in, [1, 23, 456]
