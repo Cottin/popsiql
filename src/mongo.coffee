@@ -1,4 +1,4 @@
-{compose, contains, eq, find, fromPairs, functions, gt, gte, lt, lte, map, replace, toPairs, values} = require 'ramda' # auto_require:ramda
+{compose, contains, find, fromPairs, gt, gte, lt, lte, map, pair, replace, toPairs, values} = require 'ramda' # auto_require:ramda
 {predicates} = require './query'
 {mergeMany} = require 'ramda-extras'
 
@@ -30,7 +30,7 @@ toMongo = (query) ->
 	find = map _transformPredicates, (query.where || {})
 	skip = if query.start then {skip: parseInt(query.start)}
 	limit = if query.max then {limit: parseInt(query.max)}
-	return mergeMany {find}, skip, limit
+	return mergeMany {find}, (skip || {}), (limit || {})
 
 # TODO: kanske denna får man göra själv?? Ej med i popsiql biblioteket??
 # :: o -> o -> Thenable

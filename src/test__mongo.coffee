@@ -1,6 +1,6 @@
 assert = require('assert')
 {toMongo, toMongoAndExecute} = mongo = require '../src/mongo'
-{eq, find, gt, gte, lt, lte, max, where} = require 'ramda' #auto_require:ramda
+{find, gt, gte, lt, lte, max, where} = require 'ramda' #auto_require:ramda
 {mergeMany} = require 'ramda-extras'
 
 mockCollection =
@@ -8,7 +8,7 @@ mockCollection =
   skip: (x) -> mergeMany @, {__skip: x}
   limit: (x) -> mergeMany @, {__limit: x}
 
-describe 'mongo', ->
+describe.only 'mongo', ->
   describe 'toMongo', ->
     # it 'should be able to handle nulls', ->
     #   toMongoAnd null
