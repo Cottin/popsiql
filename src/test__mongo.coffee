@@ -8,8 +8,8 @@ mockCollection =
   skip: (x) -> mergeMany @, {__skip: x}
   limit: (x) -> mergeMany @, {__limit: x}
 
-describe.only 'mongo', ->
-  describe.only 'toMongo', ->
+describe 'mongo', ->
+  describe 'toMongo', ->
     # it 'should be able to handle nulls', ->
     #   toMongoAnd null
 

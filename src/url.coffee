@@ -3,6 +3,13 @@
 
 {predicates, parameters} = require './query'
 
+# a -> a   # optimistically parses to Number or Boolean if needed
+_autoConvert = (val) ->
+	if !isNaN(val) then Number(val)
+	else if val == 'true' then return true
+	else if val == 'false' then return false
+	else return val
+
 # :: s -> o
 # parses a string to an object where predicate is key
 # eg. 'eq(abc)' -> {eq: 'abc'}
@@ -16,8 +23,8 @@ _parse = (x) ->
 	if ! contains pred, predicates then return null
 
 	if pred == 'in' || pred == 'notIn'
-		return objOf pred, split(',', value)
-	else return objOf pred, value
+		return objOf pred, map(_autoConvert, split(',', value))
+	else return objOf pred, _autoConvert(value)
 
 # :: o -> o
 # takes a urlQuery and parses it to popsiql query

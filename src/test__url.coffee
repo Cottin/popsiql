@@ -2,7 +2,7 @@ assert = require('assert')
 {fromUrl, toUrl} = url = require '../src/url'
 
 describe 'url', ->
-  describe 'fromUrl', ->
+  describe.only 'fromUrl', ->
     it 'should nest stuff under where key', ->
       query = fromUrl {a: 'eq(123)'}
       assert.equal typeof(query.where), 'object'
@@ -57,6 +57,13 @@ describe 'url', ->
       query = fromUrl {a: {'0': 'gte(1)', '1':'lte(3)'}}
       assert.equal query.where.a.gte, 1
       assert.equal query.where.a.lte, 3
+
+    it 'assume number and strings', ->
+      query = fromUrl {a: 'in(10,23.5,abc,false)'}
+      assert.strictEqual query.where.a.in[0], 10
+      assert.strictEqual query.where.a.in[1], 23.5
+      assert.strictEqual query.where.a.in[2], 'abc'
+      assert.strictEqual query.where.a.in[3], false
 
     # it 'should be able to handle implicit eq', ->
     #   url = toUrl {where: {a: 1, b: 'abc', c: 123}}
