@@ -1,5 +1,5 @@
 {fromUrl, toUrl} = url = require './url'
-{toMongo, toMongoAndExecute} = mongo = require './mongo'
+{toMongo, execMongo} = mongo = require './mongo'
 {toFirebase, toFirebaseAndExecute} = firebase = require './firebase'
 {toSuperGlue} = superglue = require './superglue'
 # {toRamda} = ramda = require './ramda' TODO: ta bort
@@ -11,7 +11,7 @@ module.exports = {
 	fromUrl
 	toUrl
 	toMongo
-	toMongoAndExecute
+	execMongo
 	toFirebase
 	toFirebaseAndExecute
 	toSuperGlue
