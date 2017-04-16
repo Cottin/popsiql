@@ -1,8 +1,12 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, drop, equals, filter, findIndex, flatten, gt, gte, head, isEmpty, isNil, keys, lensPath, lt, lte, map, max, over, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, values, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, lensPath, lt, lte, map, max, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath} = require 'ramda-extras'
 co = compose
-util = require 'util'
+utils = require './utils'
+
+sify = JSON.stringify
+
+# TODO: måste städa upp här lite
 
 # s -> [s, a] -> f   Builds a predicate function
 # eg. 'name' -> (['eq', 'elin']) -> propEq('name', 'elin')
@@ -41,8 +45,8 @@ _whereId = (ids) ->
 		else false
 
 # o -> f   Builds the get function from the query object
-_get = (query) -> (data) ->
-	data_ = getPath query.get, data
+_get = (query, isOne) -> (data) ->
+	data_ = getPath (query.many || query.one), data
 	if isNil(data_) || isEmpty(data_) then return null
 
 	{where, id} = query
@@ -92,30 +96,38 @@ _get = (query) -> (data) ->
 	if fields
 		data_ = project fields, data_
 	
-	return data_
+	if !isOne then return data_
+
+	if type(data_) == 'Object' then return cc head, values, data_
+	else if type(data_) == 'Array' then return head data_
+	else throw new Error 'should not happen ramda2'
 
 # o -> f   Returns a set function from the query object
-_set = (query) -> (data) ->
-	key = cc head, keys, query.set
-	if query.where
-		idx = findIndex _where(query), data[key]
-		dataLens = lensPath [key, idx]
-	else
-		dataLens = lensPath [key]
+_update = (query) -> (data) ->
+	entity = utils.getEntity(query)
+	if ! has entity, data
+		throw new Error "data has no entity called '#{entity}': " + sify(query)
 
-	return set dataLens, query.set[key], data
+	if ! has query.id, data[entity]
+		msg = "no entity of type '#{entity}' with id=#{query.id}: " + sify(query)
+		throw new Error msg
+
+	return set lensPath([entity, query.id]), query.data, data
 
 # o -> f   Returns an append function from the query object
-_push = (query) -> (data) ->
-	key = cc head, keys, query.push
-	dataLens = lensPath [key]
+_create = (query) -> (data) ->
+	entity = utils.getEntity(query)
 
-	return over dataLens, append(query.push[key]), data
+	return set lensPath([entity, query.id]), query.data, data
+
 
 # o -> f   Converts a popsiql query to a function using ramda functions
 ___.toRamda = toRamda = (query) ->
-	if query.get then return _get query
-	else if query.set then return _set query
-	else if query.push then return _push query
+	utils.validate query # we want to assume a valid query in this adapter
+
+	if query.many then return _get query, false
+	else if query.one then return _get query, true
+	else if query.update then return _update query
+	else if query.create then return _create query
 
 	throw new Error 'no valid operation found in query ' + JSON.stringify(query)

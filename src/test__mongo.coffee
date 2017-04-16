@@ -17,7 +17,7 @@ colls =
 		skip: (x) -> mergeMany @, {__skip: x}
 		limit: (x) -> mergeMany @, {__limit: x}
 
-describe.only 'mongo', ->
+describe 'mongo', ->
 	describe 'toMongo + execMongo', ->
 		describe 'predicates', ->
 			it 'eq, neq', ->

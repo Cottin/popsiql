@@ -1,5 +1,7 @@
-{difference, gt, gte, isEmpty, isNil, keys, lt, lte, merge, none, remove, update, where} = require 'ramda' #auto_require:ramda
+{difference, gt, gte, has, isEmpty, isNil, keys, length, lt, lte, merge, none, remove, type, update, where} = require 'ramda' #auto_require:ramda
 {ymap} = require 'ramda-extras'
+
+sify = JSON.stringify
 
 # o -> s   # returns the entity from a popsiql query object
 getEntity = ({one, many, create, update, remove, merge}) ->
@@ -10,7 +12,15 @@ getEntity = ({one, many, create, update, remove, merge}) ->
 validate = (query) ->
 	if isNil getEntity(query)
 		throw new Error 'missing valid operation (one, many, create, update, remove, merge)'
+	if has('one', query) && type(query.id) == 'Array' && length(query.id) != 1
+		throw new Error "'one'-query cannot ask for more than one id:" + sify(query)
+	if has('many', query) && !isNil(query.id)
+		if type(query.id) != 'Array' || length(query.id) < 2
+			throw new Error "'many'-query cannot ask for only one id:" + sify(query)
+
 	validateWhere query.where
+
+	# todo: validate id for update, delete, merge
 
 _preds = ['eq', 'neq', 'in', 'nin', 'gt', 'gte', 'lt', 'lte', 'like']
 
@@ -23,4 +33,4 @@ validateWhere = (where) ->
 			throw new Error "'#{diff[0]}' is not a valid popsiql predicate"
 
 #auto_export:none_
-module.exports = {getEntity, validate, validateWhere}
+module.exports = {sify, getEntity, validate, validateWhere}

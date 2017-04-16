@@ -18,7 +18,7 @@ Examples:
 {create: 'Customer', data: {id: 10, name: 'Vandelay'}}
 
 # Update a customer
-{update: 'Customer, id: 10, data: {name: 'Vandelay Industries', employees: 4}}
+{update: 'Customer', id: 10, data: {name: 'Vandelay Industries', employees: 4}}
 
 # Delete a person
 {remove: 'Person', id: 3}
