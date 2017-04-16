@@ -1,70 +1,62 @@
-assert = require('assert')
-{toMongo, toMongoAndExecute} = mongo = require '../src/mongo'
-{find, gt, gte, lt, lte, max, where} = require 'ramda' #auto_require:ramda
+assert = require 'assert'
+mongo = require './mongo'
+{find, flip, gt, gte, lt, lte, max, where} = require 'ramda' #auto_require:ramda
 {mergeMany} = require 'ramda-extras'
 
-mockCollection =
-  find: (x) -> mergeMany @, {__find: x}
-  skip: (x) -> mergeMany @, {__skip: x}
-  limit: (x) -> mergeMany @, {__limit: x}
+eq = flip assert.strictEqual
+deepEq = flip assert.deepEqual
+throws = (re, f) -> assert.throws f, re
 
-describe 'mongo', ->
-  describe 'toMongo', ->
-    # it 'should be able to handle nulls', ->
-    #   toMongoAnd null
+mae = (query) ->
+	mongoQuery = mongo.toMongo query
+	mongo.execMongo mongoQuery, colls
 
-    it 'should be able to transform eq', ->
-      fn = toMongoAndExecute {where: {a: {eq: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$eq, 123
+colls =
+	o:
+		find: (x) -> mergeMany @, {__find: x}
+		skip: (x) -> mergeMany @, {__skip: x}
+		limit: (x) -> mergeMany @, {__limit: x}
 
-    it 'should be able to tranform neq', ->
-      fn = toMongoAndExecute {where: {a: {neq: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$ne, 123
+describe.only 'mongo', ->
+	describe 'toMongo + execMongo', ->
+		describe 'predicates', ->
+			it 'eq, neq', ->
+				res = mae {many: 'o', where: {a: {eq: 123, neq: 321}}}, colls
+				deepEq {$eq: 123, $ne: 321}, res.__find.a
 
-    it 'should be able to tranform in', ->
-      fn = toMongoAndExecute {where: {a: {in: [1, 23, 456]}}}
-      query = fn mockCollection
-      assert.deepEqual query.__find.a.$in, [1, 23, 456]
+			it 'in, nin', ->
+				res = mae {many: 'o', where: {a: {in: [1,2], nin: [3,4]}}}, colls
+				deepEq {$in: [1,2], $nin: [3,4]}, res.__find.a
 
-    it 'should be able to tranform notIn', ->
-      fn = toMongoAndExecute {where: {a: {notIn: [1, 23, 456]}}}
-      query = fn mockCollection
-      assert.deepEqual query.__find.a.$nin, [1, 23, 456]
+			it 'gt, gte, lt, lte', ->
+				res = mae {many: 'o', where: {a: {gt: 1, gte: 2, lt: 3, lte: 4}}}, colls
+				deepEq {$gt: 1, $gte: 2, $lt: 3, $lte: 4}, res.__find.a
 
-    it 'should be able to tranform gt', ->
-      fn = toMongoAndExecute {where: {a: {gt: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$gt, 123
+			it 'like', ->
+				res = mae {many: 'o', where: {a: {like: '%abc%'}}}, colls
+				eq new RegExp('.*abc.*', 'i').toString(), res.__find.a.$regex.toString()
 
-    it 'should be able to tranform gte', ->
-      fn = toMongoAndExecute {where: {a: {gte: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$gte, 123
+		describe 'extras', ->
+			it 'start and max', ->
+				res = mae {many: 'o', start: 5, max: 15}, colls
+				eq 5, res.__skip
+				eq 15, res.__limit
 
-    it 'should be able to tranform lt', ->
-      fn = toMongoAndExecute {where: {a: {lt: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$lt, 123
+		describe 'edge cases', ->
+			it 'throws if no key in colls', ->
+				throws /no collection 'a' in colls/, ->
+					mae {many: 'a', where: {a: 1}}, colls
 
-    it 'should be able to tranform lte', ->
-      fn = toMongoAndExecute {where: {a: {lte: 123}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$lte, 123
+			it 'implicit eq', ->
+				res = mae {many: 'o', where: {a: 123}}, colls
+				deepEq {$eq: 123}, res.__find.a
 
-    it 'should be able to tranform like', ->
-      fn = toMongoAndExecute {where: {a: {like: '%abc%'}}}
-      query = fn mockCollection
-      assert.equal query.__find.a.$regex.toString(), new RegExp('.*abc.*', 'i')
+			it 'translate id to _id', ->
+				res = mae {many: 'o', where: {id: {neq: 1}}}, colls
+				deepEq {$ne: 1}, res.__find._id
+				eq undefined, res.__find.id
 
-    it 'should be able to tranform start and max', ->
-      fn = toMongoAndExecute {start: 5, max: 15}
-      query = fn mockCollection
-      assert.equal query.__skip, 5
-      assert.equal query.__limit, 15
-
-    it 'should translate id to _id', ->
-      fn = toMongoAndExecute {where: {id: {in: [1, 23, 456]}}}
-      query = fn mockCollection
-      assert.deepEqual query.__find._id.$in, [1, 23, 456]
+			it 'translate id to _id implicit', ->
+				res = mae {many: 'o', where: {id: 1}}, colls
+				deepEq {$eq: 1}, res.__find._id
+				eq undefined, res.__find.id

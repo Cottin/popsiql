@@ -2,7 +2,7 @@ assert = require('assert')
 {fromUrl, toUrl} = url = require '../src/url'
 
 describe 'url', ->
-  describe.only 'fromUrl', ->
+  describe 'fromUrl', ->
     it 'should nest stuff under where key', ->
       query = fromUrl {a: 'eq(123)'}
       assert.equal typeof(query.where), 'object'

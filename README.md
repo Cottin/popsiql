@@ -1,3 +1,107 @@
+# Popsiql
+Plain Objects Producing Simply Implementable Query Language
+
+Popsiql is a way of expressing data-queries as simple javascript objects.
+
+Examples:
+
+# Get customer with id=1
+{one: 'Customer', id: 1}
+
+# Get rich people under 30
+{many: 'Person', where: {age: {lt: 30}, income: {gte: 1000000}}}
+
+# Get people with an 'x' in ther name and order by age
+{many: 'Person', where: {name: {like: '%x%'}}, sort: 'age'}
+
+# Create a new customer
+{create: 'Customer', data: {id: 10, name: 'Vandelay'}}
+
+# Update a customer
+{update: 'Customer, id: 10, data: {name: 'Vandelay Industries', employees: 4}}
+
+# Delete a person
+{remove: 'Person', id: 3}
+
+# Partly update a person
+{merge: 'Person', id: 2, data: {age: 31}}
+
+Since these data-queries are simple javascript objects, they are quite easy to create, modify, read and work with. They are also so simple, that you can easily create an adapter translating the queries to any other language or technology in around 80 lines of code. Here are the included adapters:
+
+MS-SQL:
+
+popsiql.toMSSQL({many: 'Person', where: {name: {like: '%x%'}}, sort: 'age'})
+# returns: "select * from Person where name like '%x%' order by age"
+
+Mongo:
+
+popsiql.toMongoAndExec({many: 'Person', where: {age: {gt: 30}}, max: 10}, colls)
+# does two things, 1: converts the query to mongo, 2: executes query on collections object you've passed as colls. (This assumes you're useing the mongodb npm module).
+# returns: colls['Person'].find({age: {$gt: 30}}).limit(10)
+
+URL (good for integration with REST-apis):
+
+popsiql.toURL({many: 'Customer', where: {employees: {gt: 200}}, sort: 'turnover'})
+# returns: "Customer?employees=gt(200)&__sort=turnover"
+
+popsiql.fromURL("Customer?employees=gt(200)&__sort=turnover")
+# return {many: 'Customer', where: {employees: {gt: 200}}, sort: 'turnover'}
+
+Firebase:
+
+# Comming soon...
+
+Ramda:
+
+# Comming soon...
+
+
+If you want to create your own adapter for a missing technology, have a look at the existing adapters for inspiration. It's easier than you might think, existing adapters are between 50-150 lines long.
+
+If you like the idea but want to have other capabilities, you can implement a subset or superset of the "language" in your adapter. For instance, the cache library [oblie](http://...) implements a superset of popsiql adding operations such as `edit`, `commit` and `revert`:
+
+# create a copy of person with id=3 to edit:
+{edit: 'Person', id: 3}
+# do some merges because he is one year older and just got married:
+{merge: 'Person', id: 3, data: {age: 42, name: 'Jerry Benes'}}
+# commit the changes:
+{commit: 'Person', id: 3}
+# ...or revert the changes:
+{revert: 'Person', id: 3}
+
+Read more about [oblie](http://...)
+
+
+This kind of it! If you want to learn more:
+- (Read the full api)[http://...]
+- or [Try out the interactive demo-page](http://...)
+
+
+
+
+todo:
+aggregate, group, count, avg, sum
+			# averages = {DB: {many: 'Workout', id: userIds, groupBy: 'userId',
+			# fields: [{count: '$count'}]}}
+			db.workouts.aggregate([{$group: {_id: '$user', count: {$sum: 1}}}])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # popsiql
 
 Plain Objects Producing Simply Implementable Query Languages

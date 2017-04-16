@@ -1,50 +1,61 @@
-{assoc, compose, contains, dissoc, find, fromPairs, gt, gte, has, lt, lte, map, pair, replace, toPairs, values, where} = require 'ramda' # auto_require:ramda
-{predicates} = require './query'
-{cc, mergeMany} = require 'ramda-extras'
+{assoc, curry, find, gt, gte, has, isNil, lt, lte, map, merge, none, replace, type, values, where} = require 'ramda' # auto_require:ramda
+{cc, change, yfoldObj} = require 'ramda-extras'
+
+utils = require './utils'
 
 # mappings between popsiql predicate/values to mongo query
 _mongoMapping =
-	eq: (v) -> ['$eq', v]
-	neq: (v) -> ['$ne', v]
-	in: (v) -> ['$in', v]
-	notIn: (v) -> ['$nin', v]
-	gt: (v) -> ['$gt', v]
-	gte: (v) -> ['$gte', v]
-	lt: (v) -> ['$lt', v]
-	lte: (v) -> ['$lte', v]
-	like: (v) -> ['$regex', new RegExp(replace(/%/g, '.*', v), 'i')]
+	eq: (v) -> {$eq: v}
+	neq: (v) -> {$ne: v}
+	in: (v) -> {$in: v}
+	nin: (v) -> {$nin: v}
+	gt: (v) -> {$gt: v}
+	gte: (v) -> {$gte: v}
+	lt: (v) -> {$lt: v}
+	lte: (v) -> {$lte: v}
+	like: (v) -> {$regex: new RegExp(replace(/%/g, '.*', v), 'i')}
 
-# :: [k, v] -> [k2, v2]
-# transforms a popsiql predicate-value-pair to a mongo query
-_queryToMongoQuery = ([k, v]) ->
-	if ! contains k, predicates then return null
-	return _mongoMapping[k](v)
+# o -> o   # converts a map of popsiql preds to mongo preds
+_predsToMongoPreds = (preds) ->
+	return yfoldObj preds, {}, (acc, k, v) ->
+		merge acc, _mongoMapping[k](v)
 
-# :: o -> o
-# takes a popsiql {predicate: v} and transforms to mongo query like {$xxx: v}
-_transformPredicates = compose fromPairs, map(_queryToMongoQuery), toPairs
+# o -> o
+# converts a popsiql where to a mongo "find"
+_whereToFind = (where) ->
+	if isNil where then return {}
 
-# :: o -> o
+	{id} = where
+	if isNil id then where_ = where
+	else where_ = change {_id: id, id: undefined}, where
+
+	return yfoldObj where_, {}, (acc, k, v) ->
+		if type(v) != 'Object' then assoc k, {$eq: v}, acc # implicit eq
+		else assoc k, _predsToMongoPreds(v), acc
+
+# o -> o
 # takes a popsiql query and returns the parts of the corresponding mongo query
 toMongo = (query) -> 
-	where_ = query.where
-	if where_ && has 'id', where_
-		where_ = cc assoc('_id', where_['id']), dissoc('id'), where_
-	find = map _transformPredicates, (where_ || {})
-	skip = if query.start then {skip: parseInt(query.start)}
-	limit = if query.max then {limit: parseInt(query.max)}
-	return mergeMany {find}, (skip || {}), (limit || {})
+	utils.validate query # we want to assume a valid query in this adapter
 
-# TODO: kanske denna får man göra själv?? Ej med i popsiql biblioteket??
-# :: o -> o -> Thenable
+	entity = utils.getEntity query
+	find = _whereToFind query.where
+	skip = if query.start then parseInt(query.start)
+	limit = if query.max then parseInt(query.max)
+	return {entity, find, skip, limit}
+
+# o -> o -> Thenable
 # takes a popsiql query and returns a functions that expects a mongo native driver
 # collection on which it applies the mongo query transformed from the popsiql query
-toMongoAndExecute = (query) -> (collection) ->
-	{find, skip, limit} = toMongo query
-	x = collection
+execMongo = curry (query, colls) ->
+	{entity, find, skip, limit} = query
+	if ! has entity, colls
+		throw new Error "no collection '#{entity}' in colls"
+	x = colls[entity]
 	if find then x = x.find(find)
 	if skip then x = x.skip(skip)
 	if limit then x = x.limit(limit)
 	return x
 
-module.exports = {toMongo, toMongoAndExecute}
+#auto_export:none_
+module.exports = {toMongo, execMongo}
