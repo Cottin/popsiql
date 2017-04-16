@@ -45,7 +45,7 @@ _whereId = (ids) ->
 		else false
 
 # o -> f   Builds the get function from the query object
-_get = (query, isOne) -> (data) ->
+_get = (query) -> (data) ->
 	data_ = getPath (query.many || query.one), data
 	if isNil(data_) || isEmpty(data_) then return null
 
@@ -96,11 +96,11 @@ _get = (query, isOne) -> (data) ->
 	if fields
 		data_ = project fields, data_
 	
-	if !isOne then return data_
+	return data_
 
-	if type(data_) == 'Object' then return cc head, values, data_
-	else if type(data_) == 'Array' then return head data_
-	else throw new Error 'should not happen ramda2'
+	# if type(data_) == 'Object' then return cc head, values, data_
+	# else if type(data_) == 'Array' then return head data_
+	# else throw new Error 'should not happen ramda2'
 
 # o -> f   Returns a set function from the query object
 _update = (query) -> (data) ->
@@ -125,8 +125,8 @@ _create = (query) -> (data) ->
 ___.toRamda = toRamda = (query) ->
 	utils.validate query # we want to assume a valid query in this adapter
 
-	if query.many then return _get query, false
-	else if query.one then return _get query, true
+	if query.many then return _get query
+	else if query.one then return _get query
 	else if query.update then return _update query
 	else if query.create then return _create query
 

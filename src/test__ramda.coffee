@@ -1,6 +1,6 @@
 assert = require('assert')
 {toRamda} = require './ramda2'
-{empty, flip, gt, gte, has, lt, lte, max, pluck, project, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
+{empty, flip, gt, gte, has, lt, lte, map, max, pluck, project, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
@@ -26,6 +26,10 @@ describe.only 'ramda', ->
         it 'eq', ->
           f = toRamda {many: 'user', where: {a: {eq: 1}}}
           deepEq [{a: 1, b: 1}], f(MOCK)
+        it 'eq (map)', ->
+          f = toRamda {many: 'o', where: {n: 'a'}}
+          deepEq {2: {id: 2, n: 'a'}}, f(MOCK)
+
         it 'eq (implicit)', ->
           f = toRamda {many: 'user', where: {a: 1}}
           deepEq [{a: 1, b: 1}], f(MOCK)
@@ -63,7 +67,7 @@ describe.only 'ramda', ->
       describe 'id', ->
         it 'one', ->
           f = toRamda {one: 'project', id: 1}
-          deepEq {id: 1, a: 'a1'}, f(MOCK)
+          deepEq {1: {id: 1, a: 'a1'}}, f(MOCK)
         it 'multiple', ->
           f = toRamda {many: 'project', id: [1, 2]}
           deepEq {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}, f(MOCK)
