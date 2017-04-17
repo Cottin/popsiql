@@ -6,7 +6,7 @@
 {toRamda} = ramda = require './ramda2'
 {toSql} = require './sql'
 # {toNestedQuery, toFlatQuery, isValidQuery} = require './query'
-{getEntity, validate, validateWhere} = './utils'
+{getEntity, validate, validateWhere} = require './utils'
 
 module.exports = {
 	fromUrl
