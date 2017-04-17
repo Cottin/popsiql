@@ -1,6 +1,6 @@
 assert = require 'assert'
 utils = require './utils'
-{flip, test, where} = require 'ramda' #auto_require:ramda
+{flip, merge, remove, test, update, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
 deepEq = flip assert.deepEqual
@@ -36,3 +36,11 @@ describe 'utils', ->
 			throws /'many'-query cannot ask for only one id:/, ->
 				utils.validate {many: 'o', id: 1}
 
+	describe 'getOp', ->
+		it 'normal cases', ->
+			eq 'one', utils.getOp({one: 'o'})
+			eq 'many', utils.getOp({many: 'o'})
+			eq 'create', utils.getOp({create: 'o'})
+			eq 'update', utils.getOp({update: 'o'})
+			eq 'remove', utils.getOp({remove: 'o'})
+			eq 'merge', utils.getOp({merge: 'o'})

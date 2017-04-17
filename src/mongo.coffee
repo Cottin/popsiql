@@ -1,4 +1,4 @@
-{assoc, curry, find, gt, gte, has, isNil, lt, lte, map, merge, none, replace, type, values, where} = require 'ramda' # auto_require:ramda
+{assoc, curry, find, gt, gte, has, isNil, lt, lte, map, merge, none, replace, sort, type, values, where} = require 'ramda' # auto_require:ramda
 {cc, change, yfoldObj} = require 'ramda-extras'
 
 utils = require './utils'
@@ -38,24 +38,43 @@ _whereToFind = (where) ->
 toMongo = (query) -> 
 	utils.validate query # we want to assume a valid query in this adapter
 
+	op = utils.getOp query
 	entity = utils.getEntity query
 	find = _whereToFind query.where
 	skip = if query.start then parseInt(query.start)
 	limit = if query.max then parseInt(query.max)
-	return {entity, find, skip, limit}
+	sort = if query.sort then 'not yet implementd'
+	return {op, entity, find, skip, limit, sort}
 
 # o -> o -> Thenable
 # takes a popsiql query and returns a functions that expects a mongo native driver
 # collection on which it applies the mongo query transformed from the popsiql query
 execMongo = curry (query, colls) ->
-	{entity, find, skip, limit} = query
+	{op, entity, operation, find, skip, limit, sort} = query
 	if ! has entity, colls
 		throw new Error "no collection '#{entity}' in colls"
 	x = colls[entity]
-	if find then x = x.find(find)
-	if skip then x = x.skip(skip)
-	if limit then x = x.limit(limit)
-	return x
+	switch op
+		when 'one'
+			return x.findOne(find)
+		when 'many'
+			x = x.find(find)
+			if skip then x = x.skip(skip)
+			if limit then x = x.limit(limit)
+			ar = x.toArray()
+			# if its sorted, we need the array...
+			if !isNil sort then return ar
+			# ...but by default we want to work with maps and not arrays
+			return ar.then (val) ->
+				val_ = {}
+				for x in val
+					if ! has 'id', x
+						return val # if we have one id missing, just return the array
+					val_[x.id] = x
+				return val_
+		else
+			throw new "execMongo: op #{op} not yet implemented"
+
 
 #auto_export:none_
 module.exports = {toMongo, execMongo}
