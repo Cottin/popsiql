@@ -2,6 +2,7 @@
 {cc, mergeMany} = require 'ramda-extras'
 
 {predicates, parameters} = require './query'
+utils = require './utils'
 
 # a -> a   # optimistically parses to Number or Boolean if needed
 _autoConvert = (val) ->
@@ -37,19 +38,28 @@ fromUrl = (urlQuery) ->
 
 # :: o -> s
 # takes a popsiql query and transforms it to a url query string
+# toUrl = (query) ->
+# 	predToString = ([k, v]) -> "#{k}(#{v})"
+# 	predObjectToString = compose map(predToString), toPairs
+# 	whereFieldToString = ([k, pred]) ->
+# 		if R.is(Object, pred) then cc map(add("#{k}=")), predObjectToString(pred)
+# 		else "#{k}=#{pred}"
+# 	wheres = cc chain(whereFieldToString), toPairs, query.where
+
+# 	# LIMITS
+# 	limits = cc map(join('=')), toPairs, pick(parameters), query
+
+# 	nonEmptyParts = concat(wheres, limits)
+# 	return join '&', nonEmptyParts
+
+_toQueryString = ({where}) ->
+	cc toPairs, where
+
 toUrl = (query) ->
-	predToString = ([k, v]) -> "#{k}(#{v})"
-	predObjectToString = compose map(predToString), toPairs
-	whereFieldToString = ([k, pred]) ->
-		if R.is(Object, pred) then cc map(add("#{k}=")), predObjectToString(pred)
-		else "#{k}=#{pred}"
-	wheres = cc chain(whereFieldToString), toPairs, query.where
+	utils.validate query # we want to assume we're working with a valid query
 
-	# LIMITS
-	limits = cc map(join('=')), toPairs, pick(parameters), query
-
-	nonEmptyParts = concat(wheres, limits)
-	return join '&', nonEmptyParts
+	entity = utils.getEntity query
+	queryString = _toQueryString query
 
 module.exports = {fromUrl, toUrl}
 

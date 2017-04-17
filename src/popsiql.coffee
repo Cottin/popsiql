@@ -5,7 +5,8 @@
 # {toRamda} = ramda = require './ramda' TODO: ta bort
 {toRamda} = ramda = require './ramda2'
 {toSql} = require './sql'
-{toNestedQuery, toFlatQuery, isValidQuery} = require './query'
+# {toNestedQuery, toFlatQuery, isValidQuery} = require './query'
+{getEntity, validate, validateWhere} = './utils'
 
 module.exports = {
 	fromUrl
@@ -16,8 +17,8 @@ module.exports = {
 	toFirebaseAndExecute
 	toSuperGlue
 	toRamda
-	toNestedQuery
-	toFlatQuery
 	toSql
-	isValidQuery
+	getEntity
+	validate
+	validateWhere
 }
