@@ -1,4 +1,4 @@
-{assoc, curry, find, gt, gte, has, isNil, lt, lte, map, merge, none, replace, sort, type, values, where} = require 'ramda' # auto_require:ramda
+{assoc, curry, dissoc, find, gt, gte, has, isNil, lt, lte, map, merge, none, replace, sort, type, values, where} = require 'ramda' # auto_require:ramda
 {cc, change, yfoldObj} = require 'ramda-extras'
 
 utils = require './utils'
@@ -46,6 +46,11 @@ toMongo = (query) ->
 	sort = if query.sort then 'not yet implementd'
 	return {op, entity, find, skip, limit, sort}
 
+# o -> o   # replaces _id with id on x
+_idToid = (x) ->
+	if ! has '_id', x then x
+	else cc assoc('id', x._id), dissoc('_id'), x
+
 # o -> o -> Thenable
 # takes a popsiql query and returns a functions that expects a mongo native driver
 # collection on which it applies the mongo query transformed from the popsiql query
@@ -63,14 +68,14 @@ execMongo = curry (query, colls) ->
 			if limit then x = x.limit(limit)
 			ar = x.toArray()
 			# if its sorted, we need the array...
-			if !isNil sort then return ar
+			if !isNil sort then return ar.then (val) -> map _idToid, val
 			# ...but by default we want to work with maps and not arrays
 			return ar.then (val) ->
 				val_ = {}
 				for x in val
-					if ! has 'id', x
+					if ! has '_id', x
 						return val # if we have one id missing, just return the array
-					val_[x.id] = x
+					val_[x._id] = _idToid x
 				return val_
 		else
 			throw new "execMongo: op #{op} not yet implemented"

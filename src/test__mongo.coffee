@@ -42,7 +42,7 @@ colls =
 colls2 =
 	o:
 		find: (x) -> mergeMany @, {__find: x}
-		toArray: () -> new Promise (res) -> res [{id: 1, a: 1}, {id: 2, a: 2}]
+		toArray: () -> new Promise (res) -> res [{_id: 1, a: 1}, {_id: 2, a: 2}]
 
 # note: because of the promised-based api of node.js mongo drive and some
 # 			magic happening in execMongo, we need some special ways of testing
