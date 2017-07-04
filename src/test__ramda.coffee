@@ -1,5 +1,5 @@
 assert = require('assert')
-{toRamda} = require './ramda2'
+{toRamda, nextId} = require './ramda2'
 {empty, flip, gt, gte, has, lt, lte, map, max, pluck, project, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
@@ -13,7 +13,7 @@ MOCK =
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
-describe 'ramda', ->
+describe.only 'ramda', ->
   describe 'toRamda', ->
     describe 'many and one', ->
       it 'simple', ->
@@ -150,6 +150,18 @@ describe 'ramda', ->
         newData = f MOCK
         deepEq {id: 5, n: 'r'}, newData.o[5]
 
+  describe.only 'nextId', ->
+    it 'int', ->
+      res = nextId [1, 2, 4, 3]
+      eq 5, res
+
+    it 'int string', ->
+      res = nextId ['1', '2', '4', '3']
+      eq '5', res
+
+    it 'string', ->
+      res = nextId ['abc1', 'abc2', 'abc4', 'abc3']
+      eq 'abc4_1', res
 
 
 

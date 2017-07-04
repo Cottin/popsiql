@@ -47,7 +47,7 @@ colls2 =
 # note: because of the promised-based api of node.js mongo drive and some
 # 			magic happening in execMongo, we need some special ways of testing
 
-describe.only 'mongo', ->
+describe 'mongo', ->
 	describe 'toMongo + execMongo', ->
 		describe 'predicates', ->
 			it 'eq, neq', ->

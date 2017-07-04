@@ -1,6 +1,6 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, lensPath, lt, lte, map, max, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
-{cc, getPath} = require 'ramda-extras'
+{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
+{cc, getPath, ysort} = require 'ramda-extras'
 co = compose
 utils = require './utils'
 
@@ -131,3 +131,17 @@ ___.toRamda = toRamda = (query) ->
 	else if query.create then return _create query
 
 	throw new Error 'no valid operation found in query ' + JSON.stringify(query)
+
+___.nextId = nextId = (ids) ->
+	sorted = ysort ids, (a, b) ->
+		if a < b then -1
+		else if a > b then 1
+		else 0
+	biggestId = last sorted
+	switch type biggestId
+		when 'Number' then biggestId + 1
+		when 'String'
+			if isNaN parseInt(biggestId) then biggestId + '_1'
+			else parseInt(biggestId) + 1 + ''
+		else
+			throw new Error 'popsiql.nextId only support Numbers and Strings as ids'

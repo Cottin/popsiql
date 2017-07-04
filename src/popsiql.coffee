@@ -3,7 +3,7 @@
 {toFirebase, toFirebaseAndExecute} = firebase = require './firebase'
 {toSuperGlue} = superglue = require './superglue'
 # {toRamda} = ramda = require './ramda' TODO: ta bort
-{toRamda} = ramda = require './ramda2'
+{toRamda, nextId} = ramda = require './ramda2'
 {toSql} = require './sql'
 # {toNestedQuery, toFlatQuery, isValidQuery} = require './query'
 {getEntity, getOp, validate, validateWhere} = require './utils'
@@ -17,6 +17,7 @@ module.exports = {
 	toFirebaseAndExecute
 	toSuperGlue
 	toRamda
+	nextId
 	toSql
 	getEntity
 	getOp
