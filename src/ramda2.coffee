@@ -118,7 +118,9 @@ _update = (query) -> (data) ->
 _create = (query) -> (data) ->
 	entity = utils.getEntity(query)
 
-	return set lensPath([entity, query.id]), query.data, data
+	id = if isNil query.id then nextId keys(data[entity]) else query.id
+
+	return set lensPath([entity, id]), query.data, data
 
 
 # o -> f   Converts a popsiql query to a function using ramda functions

@@ -144,13 +144,18 @@ describe.only 'ramda', ->
         throws /no entity of type 'o' with id=999/, ->
           toRamda({update: 'o', id: 999})(MOCK)
 
-    describe 'create = update', ->
+    describe.only 'create = update', ->
       it 'simple', ->
         f = toRamda {create: 'o', id: 5, data: {id: 5, n: 'r'}}
         newData = f MOCK
         deepEq {id: 5, n: 'r'}, newData.o[5]
 
-  describe.only 'nextId', ->
+      it 'no id', ->
+        f = toRamda {create: 'o', data: {id: 5, n: 'r'}}
+        newData = f MOCK
+        deepEq {id: 5, n: 'r'}, newData.o[5]
+
+  describe 'nextId', ->
     it 'int', ->
       res = nextId [1, 2, 4, 3]
       eq 5, res
