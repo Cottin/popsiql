@@ -162,7 +162,7 @@ describe.only 'ramda', ->
 
     it 'int string', ->
       res = nextId ['1', '2', '13', '3', '8', '10', '12']
-      eq '14', res
+      eq 14, res
 
     it 'string', ->
       res = nextId ['abc1', 'abc2', 'abc4', 'abc3']

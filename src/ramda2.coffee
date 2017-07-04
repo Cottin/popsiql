@@ -151,6 +151,6 @@ ___.nextId = nextId = (ids) ->
 		when 'Number' then biggestId + 1
 		when 'String'
 			if isNaN parseInt(biggestId) then biggestId + '_1'
-			else parseInt(biggestId) + 1 + ''
+			else parseInt(biggestId) + 1
 		else
 			throw new Error 'popsiql.nextId only support Numbers and Strings as ids'
