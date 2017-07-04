@@ -146,9 +146,9 @@ describe.only 'ramda', ->
 
     describe 'create = update', ->
       it 'simple', ->
-        f = toRamda {create: 'o', data: {id: 5, n: 'r'}}
+        f = toRamda {create: 'o', data: {id: 6, n: 'r'}}
         newData = f MOCK
-        deepEq {id: 5, n: 'r'}, newData.o[5]
+        deepEq {id: 6, n: 'r'}, newData.o[6]
 
       it 'no id', ->
         f = toRamda {create: 'o', data: {n: 'r'}}
