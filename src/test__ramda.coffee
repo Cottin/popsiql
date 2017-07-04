@@ -155,7 +155,7 @@ describe.only 'ramda', ->
         newData = f MOCK
         deepEq {id: 5, n: 'r'}, newData.o[5]
 
-  describe.only 'nextId', ->
+  describe 'nextId', ->
     it 'int', ->
       res = nextId [1, 2, 4, 3]
       eq 5, res
