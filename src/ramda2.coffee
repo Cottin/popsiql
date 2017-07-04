@@ -1,5 +1,5 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, merge, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath, ysort} = require 'ramda-extras'
 co = compose
 utils = require './utils'
@@ -118,9 +118,12 @@ _update = (query) -> (data) ->
 _create = (query) -> (data) ->
 	entity = utils.getEntity(query)
 
-	id = if isNil query.id then nextId keys(data[entity]) else query.id
-
-	return set lensPath([entity, id]), query.data, data
+	if isNil query.id 
+		id = nextId keys(data[entity])
+		newObj = merge query.data, {id}
+		return set lensPath([entity, id]), newObj, data
+	else
+		return set lensPath([entity, query.id]), query.data, data
 
 
 # o -> f   Converts a popsiql query to a function using ramda functions
@@ -142,7 +145,7 @@ ___.nextId = nextId = (ids) ->
 		if a < b then -1
 		else if a > b then 1
 		else 0
-		
+
 	biggestId = last sorted
 	switch type biggestId
 		when 'Number' then biggestId + 1
