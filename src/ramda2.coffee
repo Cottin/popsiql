@@ -136,9 +136,13 @@ ___.toRamda = toRamda = (query) ->
 
 ___.nextId = nextId = (ids) ->
 	sorted = ysort ids, (a, b) ->
+		if !isNaN(parseInt(a)) && !isNaN(parseInt(b))
+			return parseInt(a) - parseInt(b)
+
 		if a < b then -1
 		else if a > b then 1
 		else 0
+		
 	biggestId = last sorted
 	switch type biggestId
 		when 'Number' then biggestId + 1
