@@ -1,6 +1,6 @@
 {
   "name": "popsiql",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Sweet and delicious \"data\"-queries in javascript",
   "main": "lib/popsiql.js",
   "scripts": {
@@ -26,7 +26,7 @@
   "dependencies": {
     "q": "^1.4.1",
     "ramda": "^0.23.0",
-    "ramda-extras": "^0.2.14"
+    "ramda-extras": "^0.2.17"
   },
   "devDependencies": {
     "babel-core": "^6.3.15",

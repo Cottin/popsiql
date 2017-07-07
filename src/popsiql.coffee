@@ -1,4 +1,4 @@
-{fromUrl, toUrl} = url = require './url'
+{fromRest, toRest} = rest = require './rest'
 {toMongo, execMongo} = mongo = require './mongo'
 {toFirebase, toFirebaseAndExecute} = firebase = require './firebase'
 {toSuperGlue} = superglue = require './superglue'
@@ -9,8 +9,8 @@
 {getEntity, getOp, validate, validateWhere} = require './utils'
 
 module.exports = {
-	fromUrl
-	toUrl
+	fromRest
+	toRest
 	toMongo
 	execMongo
 	toFirebase

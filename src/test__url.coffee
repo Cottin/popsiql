@@ -1,139 +1,125 @@
 assert = require 'assert'
-{flip, gt, gte, lt, lte, max, where} = require 'ramda' #auto_require:ramda
-{fromUrl, toUrl} = url = require '../src/url'
+{all, flip, gt, gte, lt, lte, max, props, remove, update, where} = require 'ramda' #auto_require:ramda
+{fromRest, toRest} = url = require '../src/rest'
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
 throws = (re, f) -> assert.throws f, re
 
-fetch = (url, req) ->
-  @url = url
-  @req = req
+describe.only 'rest', ->
 
-# TODO: write url.coffee when I have the need.
-#       right now I don't have "normal" REST apis anyway
+  describe 'toRest', ->
+    describe 'many', ->
+      it 'only entity', ->
+        res = toRest {many: 'o'}
+        deepEq {method: 'GET', url: 'o'}, res
 
-# describe 'url', ->
-  # describe 'fromUrl', ->
-  #   it 'should nest stuff under where key', ->
-  #     query = fromUrl {a: 'eq(123)'}
-  #     assert.equal typeof(query.where), 'object'
+      it 'all preds', ->
+        where =
+          a:
+            eq: 'abc'
+            neq: 'qwe'
+            lt: 13
+            lte: 12
+            gt: 10
+            gte: 11
+            in: [1, 23]
+            nin: [4, 56]
+            like: '%a%'
+        res = toRest {many: 'o', where}
+        eq "o?a=eq(abc)&a=neq(qwe)&a=lt(13)&a=lte(12)&a=gt(10)&a=gte(11)&a=in(1,23)&a=nin(4,56)&a=like(%a%)", res.url
 
-  #   it 'should be able to parse eq', ->
-  #     query = fromUrl {a: 'eq(123)'}
-  #     assert.equal query.where.a.eq, 123
+      it 'multi props and multi preds', ->
+        res = toRest {many: 'o', where: {a: {gt: 10, lt: 20}, b: {gte: 11, lte: 21}}}
+        eq 'o?a=gt(10)&a=lt(20)&b=gte(11)&b=lte(21)', res.url
 
-  #   it 'should be able to parse neq', ->
-  #     query = fromUrl {a: 'neq(123)'}
-  #     assert.equal query.where.a.neq, 123
+      it 'implicit eq', ->
+        res = toRest {many: 'o', where: {a: 123, b: 'abc'}}
+        eq 'o?a=123&b=abc', res.url
 
-  #   it 'should be able to parse in', ->
-  #     query = fromUrl {a: 'in(1,23,456)'}
-  #     assert.deepEqual query.where.a.in, [1,23,456]
+      it 'start and max', ->
+        res = toRest {many: 'o', start: 5, max: 15}
+        eq 'o?$start=5&$max=15', res.url
 
-  #   it 'should be able to parse notIn', ->
-  #     query = fromUrl {a: 'notIn(1,23,456)'}
-  #     assert.deepEqual query.where.a.notIn, [1,23,456]
+    describe 'one', ->
+      it 'id', ->
+        res = toRest {one: 'o', id: 2}
+        eq 'o/2', res.url
 
-  #   it 'should be able to parse lt', ->
-  #     query = fromUrl {a: 'lt(123)'}
-  #     assert.equal query.where.a.lt, 123
+    describe 'create', ->
+      it 'simple', ->
+        res = toRest {create: 'o', data: {a: 1, b: 'abc'}}
+        deepEq {method: 'POST', url: 'o', body: {a: 1, b: 'abc'}}, res
 
-  #   it 'should be able to parse lte', ->
-  #     query = fromUrl {a: 'lte(123)'}
-  #     assert.equal query.where.a.lte, 123
+    describe 'update', ->
+      it 'simple', ->
+        res = toRest {update: 'o', id: 1, data: {id: 1, a: 1, b: 'abc'}}
+        deepEq {method: 'PUT', url: 'o/1', body: {a: 1, b: 'abc'}}, res
 
-  #   it 'should be able to parse gt', ->
-  #     query = fromUrl {a: 'gt(123)'}
-  #     assert.equal query.where.a.gt, 123
+    describe 'remove', ->
+      it 'simple', ->
+        res = toRest {remove: 'o', id: 1}
+        deepEq {method: 'DELETE', url: 'o/1'}, res
 
-  #   it 'should be able to parse gte', ->
-  #     query = fromUrl {a: 'gte(123)'}
-  #     assert.equal query.where.a.gte, 123
+  describe 'fromRest', ->
+    describe 'many', ->
+      it 'only entity', ->
+        deepEq {many: 'o'}, fromRest({url: 'o', method: 'GET'})
 
-  #   it 'should be able to parse like', ->
-  #     query = fromUrl {a: 'like(%abc%)'}
-  #     assert.equal query.where.a.like, '%abc%'
+      it 'all preds', ->
+        res = fromRest {url: "o?a=eq(abc)&a=neq(qwe)&a=lt(13)&a=lte(12)&a=gt(10)&a=gte(11)&a=in(1,23)&a=nin(4,56)&a=like(%a%)", method: 'GET'}
+        where =
+          a:
+            eq: 'abc'
+            neq: 'qwe'
+            lt: 13
+            lte: 12
+            gt: 10
+            gte: 11
+            in: [1, 23]
+            nin: [4, 56]
+            like: '%a%'
+        deepEq {many: 'o', where}, res
 
-  #   it 'should be able to parse start and max parameters', ->
-  #     query = fromUrl {start: 0, max: 15}
-  #     assert.equal query.start, 0
-  #     assert.equal query.max, 15
+      it 'multi props and multi preds', ->
+        res = fromRest {url: 'o?a=gt(10)&a=lt(20)&b=gte(11)&b=lte(21)', method: 'GET'}
+        exp = {many: 'o', where: {a: {gt: 10, lt: 20}, b: {gte: 11, lte: 21}}}
+        deepEq exp, res
 
-  #   it 'should be able to handle multiple properties', ->
-  #     query = fromUrl {a: 'abc', b: 123}
-  #     assert.equal query.where.a, 'abc'
-  #     assert.equal query.where.b, 123
+      it 'implicit eq', ->
+        res = fromRest {url: 'o?a=123&b=abc', method: 'GET'}
+        deepEq {many: 'o', where: {a: 123, b: 'abc'}}, res
 
-  #   it 'should be able to handle multiple predicates', ->
-  #     query = fromUrl {a: {'0': 'gte(1)', '1':'lte(3)'}}
-  #     assert.equal query.where.a.gte, 1
-  #     assert.equal query.where.a.lte, 3
+      it 'start and max', ->
+        res = fromRest {url: 'o?$start=5&$max=15', method: 'GET'}
+        deepEq {many: 'o', start: 5, max: 15}, res
 
-  #   it 'assume number and strings', ->
-  #     query = fromUrl {a: 'in(10,23.5,abc,false)'}
-  #     assert.strictEqual query.where.a.in[0], 10
-  #     assert.strictEqual query.where.a.in[1], 23.5
-  #     assert.strictEqual query.where.a.in[2], 'abc'
-  #     assert.strictEqual query.where.a.in[3], false
+      it 'assume number and strings', ->
+        query = fromRest {url: 'o?a=in(10,23.5,abc,false)', method: 'GET'}
+        eq query.where.a.in[0], 10
+        eq query.where.a.in[1], 23.5
+        eq query.where.a.in[2], 'abc'
+        eq query.where.a.in[3], false
 
-  #   # it 'should be able to handle implicit eq', ->
-  #   #   url = toUrl {where: {a: 1, b: 'abc', c: 123}}
-  #   #   assert.equal url, 'a=1&b=abc&c=123'
+    describe 'one', ->
+      it 'id', ->
+        deepEq {one: 'o', id: 2}, fromRest({url: 'o/2', method: 'GET'})
+
+    describe 'create', ->
+      it 'simple', ->
+        res = fromRest {method: 'POST', url: 'o', body: {a: 1, b: 'abc'}}
+        deepEq {create: 'o', data: {a: 1, b: 'abc'}}, res
+
+    describe 'update', ->
+      it 'simple', ->
+        res = fromRest {method: 'PUT', url: 'o/1', body: {a: 1, b: 'abc'}}
+        deepEq {update: 'o', id: 1, data: {id: 1, a: 1, b: 'abc'}}, res
+
+    describe 'remove', ->
+      it 'simple', ->
+        res = fromRest {method: 'DELETE', url: 'o/1'}
+        deepEq {remove: 'o', id: 1}, res
 
 
-
-  # describe 'toUrl', ->
-  #   it 'eq', ->
-  #     {url, req} = toUrl {many: 'o', where: {a: {eq: 'abc'}}}
-  #     eq url, 'o?a=eq(abc)'
-
-    # it 'should be able to handle neq', ->
-    #   url = toUrl {where: {a: {neq: 'abc'}}}
-    #   assert.equal url, 'a=neq(abc)'
-
-    # it 'should be able to handle in', ->
-    #   url = toUrl {where: {a: {in: [1, 23, 456]}}}
-    #   assert.equal url, 'a=in(1,23,456)'
-
-    # it 'should be able to handle notIn', ->
-    #   url = toUrl {where: {a: {notIn: [1, 23, 456]}}}
-    #   assert.equal url, 'a=notIn(1,23,456)'
-
-    # it 'should be able to handle lt', ->
-    #   url = toUrl {where: {a: {lt: 123}}}
-    #   assert.equal url, 'a=lt(123)'
-
-    # it 'should be able to handle lte', ->
-    #   url = toUrl {where: {a: {lte: 123}}}
-    #   assert.equal url, 'a=lte(123)'
-
-    # it 'should be able to handle gt', ->
-    #   url = toUrl {where: {a: {gt: 123}}}
-    #   assert.equal url, 'a=gt(123)'
-
-    # it 'should be able to handle gte', ->
-    #   url = toUrl {where: {a: {gte: 123}}}
-    #   assert.equal url, 'a=gte(123)'
-
-    # it 'should be able to handle like', ->
-    #   url = toUrl {where: {a: {like: '%abc%'}}}
-    #   assert.equal url, 'a=like(%abc%)'
-
-    # it 'should be able to handle start and max parameters', ->
-    #   url = toUrl {start: 5, max: 15}
-    #   assert.equal url, 'start=5&max=15'
-
-    # it 'should be able to handle multiple properties', ->
-    #   url = toUrl {where: {a: {lt: 123}, b: {gt: 2}}}
-    #   assert.equal url, 'a=lt(123)&b=gt(2)'
-
-    # it 'should be able to handle implicit eq', ->
-    #   url = toUrl {where: {a: 1, b: 'abc', c: 123}}
-    #   assert.equal url, 'a=1&b=abc&c=123'
-
-    # it 'should be able to handle multiple predicates', ->
-    #   url = toUrl {where: {a: {gte: 1, lte: 3}}}
-    #   assert.equal url, 'a=gte(1)&a=lte(3)'
 
 

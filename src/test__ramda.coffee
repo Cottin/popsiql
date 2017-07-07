@@ -13,7 +13,7 @@ MOCK =
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
-describe.only 'ramda', ->
+describe 'ramda', ->
   describe 'toRamda', ->
     describe 'many and one', ->
       it 'simple', ->
