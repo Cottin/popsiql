@@ -1,4 +1,4 @@
-{compose, equals, flatten, gt, gte, head, insert, into, join, keys, lt, lte, map, pair, replace, set, toPairs, update, values, where} = R = require 'ramda' #auto_require:ramda
+{compose, equals, flatten, gt, gte, head, insert, into, join, keys, lt, lte, map, pair, replace, set, toLower, toPairs, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
@@ -45,8 +45,9 @@ _where = (query) ->
 # o -> s   Builds the SELECT query from the query object
 _get = (query) ->
 	{fields} = query
+	table = toLower(query.many || query.one)
 	cols = if fields then join(', ', fields) else '*'
-	return "select #{cols} from #{query.get}" + _where(query)
+	return "select #{cols} from #{table}" + _where(query)
 
 # o -> s   Builds the UPDATE query from the query object
 _set = (query) ->
@@ -62,6 +63,6 @@ _push = (query) ->
 
 # o -> s   Converts a popsiql query to a SQL query
 exports.toSql = toSql = (query) ->
-	if query.get then return _get query
-	else if query.set then return _set query
-	else if query.push then return _push query
+	if query.many || query.one then return _get query
+	# else if query.set then return _set query
+	# else if query.push then return _push query
