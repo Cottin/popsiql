@@ -87,7 +87,7 @@ _parseQueryString = (url) ->
 		if isNil k
 			if left == '$start' then start = _autoConvert right
 			else if left == '$max' then max = _autoConvert right
-			else where[left] = right # implicit eq
+			else where[left] = _autoConvert right # implicit eq
 			continue
 		v =
 			if k == 'in' || k == 'nin' then doto _v, split(','), map(_autoConvert)

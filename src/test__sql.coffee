@@ -7,7 +7,7 @@ deepEq = flip assert.deepEqual
 throws = (f) -> assert.throws f, Error
 
 
-describe.only 'sql', ->
+describe 'sql', ->
   describe 'toSql', ->
     describe 'one', ->
       it 'simple', ->

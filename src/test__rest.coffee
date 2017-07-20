@@ -1,8 +1,8 @@
 assert = require 'assert'
-{all, flip, gt, gte, lt, lte, max, props, remove, update, where} = require 'ramda' #auto_require:ramda
+{all, flip, gt, gte, lt, lte, max, props, remove, type, update, where} = require 'ramda' #auto_require:ramda
 {fromRest, toRest} = url = require '../src/rest'
 
-eq = flip assert.equal
+eq = flip assert.strictEqual
 deepEq = flip assert.deepEqual
 throws = (re, f) -> assert.throws f, re
 
@@ -61,7 +61,7 @@ describe 'rest', ->
         res = toRest {remove: 'o', id: 1}
         deepEq {method: 'DELETE', url: 'o/1'}, res
 
-  describe 'fromRest', ->
+  describe.only 'fromRest', ->
     describe 'many', ->
       it 'only entity', ->
         deepEq {many: 'o'}, fromRest({url: 'o', method: 'GET'})
@@ -80,6 +80,7 @@ describe 'rest', ->
             nin: [4, 56]
             like: '%a%'
         deepEq {many: 'o', where}, res
+        eq 12, res.where.a.lte # make sure type is auto-converted
 
       it 'multi props and multi preds', ->
         res = fromRest {url: 'o?a=gt(10)&a=lt(20)&b=gte(11)&b=lte(21)', method: 'GET'}
@@ -89,6 +90,7 @@ describe 'rest', ->
       it 'implicit eq', ->
         res = fromRest {url: 'o?a=123&b=abc', method: 'GET'}
         deepEq {many: 'o', where: {a: 123, b: 'abc'}}, res
+        eq 123, res.where.a # make sure type is auto-converted
 
       it 'start and max', ->
         res = fromRest {url: 'o?$start=5&$max=15', method: 'GET'}
