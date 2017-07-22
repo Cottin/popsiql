@@ -6,7 +6,7 @@ eq = flip assert.strictEqual
 deepEq = flip assert.deepEqual
 throws = (re, f) -> assert.throws f, re
 
-describe 'rest', ->
+describe.only 'rest', ->
 
   describe 'toRest', ->
     describe 'many', ->
@@ -105,7 +105,9 @@ describe 'rest', ->
 
     describe 'one', ->
       it 'id', ->
-        deepEq {one: 'o', id: 2}, fromRest({url: 'o/2', method: 'GET'})
+        res = fromRest({url: 'o/2', method: 'GET'}) 
+        deepEq {one: 'o', id: 2}, res
+        eq 2, res.id # needs to auto-convert
 
     describe 'create', ->
       it 'simple', ->

@@ -34,7 +34,7 @@ fromRest = ({method, url, body}) ->
 		when 'GET'
 			if test /(\w*)\/(\d*)$/, url
 				[_, entity, id] = match /(\w*)\/(\d*)$/, url
-				return {one: entity, id}
+				return {one: entity, id: _autoConvert(id)}
 
 			entity =
 				if indexOf('?', url) != -1 then url.substr(0, indexOf('?', url))
