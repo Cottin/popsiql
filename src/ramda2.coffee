@@ -112,7 +112,8 @@ _update = (query) -> (data) ->
 		msg = "no entity of type '#{entity}' with id=#{query.id}: " + sify(query)
 		throw new Error msg
 
-	return set lensPath([entity, query.id]), query.data, data
+	newData = set lensPath([entity, query.id]), query.data, data
+	return [newData, null]
 
 # o -> f   Returns an append function from the query object
 _create = (query) -> (data) ->
@@ -127,7 +128,8 @@ _create = (query) -> (data) ->
 		if has query.data.id, data[entity]
 			msg = "cannot create '#{entity}', id=#{query.data.id} already exists: " + sify(query)
 			throw new Error msg
-		return set lensPath([entity, query.data.id]), query.data, data
+		newData = set lensPath([entity, query.data.id]), query.data, data
+		return [newData, null]
 
 
 # o -> f   Converts a popsiql query to a function using ramda functions
