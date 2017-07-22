@@ -118,11 +118,13 @@ describe.only 'rest', ->
       it 'simple', ->
         res = fromRest {method: 'PUT', url: 'o/1', body: {a: 1, b: 'abc'}}
         deepEq {update: 'o', id: 1, data: {id: 1, a: 1, b: 'abc'}}, res
+        eq 1, res.id
 
     describe 'remove', ->
       it 'simple', ->
         res = fromRest {method: 'DELETE', url: 'o/1'}
         deepEq {remove: 'o', id: 1}, res
+        eq 1, res.id
 
 
 
