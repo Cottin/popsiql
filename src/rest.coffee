@@ -49,11 +49,12 @@ fromRest = ({method, url, body}) ->
 		when 'POST'
 			return {create: url, data: body}
 		when 'PUT'
-			[_, entity, id] = match /(\w*)\/(\d*)$/, url
-			return {update: entity, id: _autoConvert(id), data: merge(body, {id})}
+			[_, entity, _id] = match /(\w*)\/(\d*)$/, url
+			id = _autoConvert _id
+			return {update: entity, id, data: merge(body, {id})}
 		when 'DELETE'
-			[_, entity, id] = match /(\w*)\/(\d*)$/, url
-			return {remove: entity, id: _autoConvert(id)}
+			[_, entity, _id] = match /(\w*)\/(\d*)$/, url
+			return {remove: entity, id: _autoConvert(_id)}
 
 # o -> [s]   Converts the where-part to a list of attributes for query string
 _toAttrs = ({where}) ->
