@@ -1,5 +1,5 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, merge, project, prop, propEq, propSatisfies, props, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, dissoc, dissocPath, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, merge, project, prop, propEq, propSatisfies, props, remove, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath, ysort} = require 'ramda-extras'
 co = compose
 utils = require './utils'
@@ -102,19 +102,6 @@ _get = (query) -> (data) ->
 	# else if type(data_) == 'Array' then return head data_
 	# else throw new Error 'should not happen ramda2'
 
-# o -> f   Returns a set function from the query object
-_update = (query) -> (data) ->
-	entity = utils.getEntity(query)
-	if ! has entity, data
-		throw new Error "data has no entity called '#{entity}': " + sify(query)
-
-	if ! has query.id, data[entity]
-		msg = "no entity of type '#{entity}' with id=#{query.id}: " + sify(query)
-		throw new Error msg
-
-	newData = set lensPath([entity, query.id]), query.data, data
-	return [newData, null]
-
 # o -> f   Returns an append function from the query object
 _create = (query) -> (data) ->
 	entity = utils.getEntity(query)
@@ -131,6 +118,31 @@ _create = (query) -> (data) ->
 		newData = set lensPath([entity, query.data.id]), query.data, data
 		return [newData, null]
 
+# o -> f   Returns a set function from the query object
+_update = (query) -> (data) ->
+	entity = utils.getEntity(query)
+	if ! has entity, data
+		throw new Error "data has no entity called '#{entity}': " + sify(query)
+
+	if ! has query.id, data[entity]
+		msg = "no entity of type '#{entity}' with id=#{query.id}: " + sify(query)
+		throw new Error msg
+
+	newData = set lensPath([entity, query.id]), query.data, data
+	return [newData, null]
+
+# o -> f   Returns a dissoc function from the query object
+_remove = (query) -> (data) ->
+	entity = utils.getEntity(query)
+	if ! has entity, data
+		throw new Error "data has no entity called '#{entity}': " + sify(query)
+
+	if ! has query.id, data[entity]
+		msg = "no entity of type '#{entity}' with id=#{query.id}: " + sify(query)
+		throw new Error msg
+
+	newData = dissocPath [entity, query.id], data
+	return [newData, null]
 
 # o -> f   Converts a popsiql query to a function using ramda functions
 ___.toRamda = toRamda = (query) ->
@@ -138,8 +150,9 @@ ___.toRamda = toRamda = (query) ->
 
 	if query.many then return _get query
 	else if query.one then return _get query
-	else if query.update then return _update query
 	else if query.create then return _create query
+	else if query.update then return _update query
+	else if query.remove then return _remove query
 
 	throw new Error 'no valid operation found in query ' + JSON.stringify(query)
 

@@ -1,6 +1,6 @@
 assert = require('assert')
 {toRamda, nextId} = require './ramda2'
-{empty, flip, gt, gte, has, lt, lte, map, max, pluck, project, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
+{empty, flip, gt, gte, has, lt, lte, map, max, pluck, project, remove, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
 deepEq = flip assert.deepEqual
@@ -13,7 +13,7 @@ MOCK =
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
-describe 'ramda', ->
+describe.only 'ramda', ->
   describe 'toRamda', ->
     describe 'many and one', ->
       it 'simple', ->
@@ -143,6 +143,20 @@ describe 'ramda', ->
       it 'throws if no entity with id', ->
         throws /no entity of type 'o' with id=999/, ->
           toRamda({update: 'o', id: 999})(MOCK)
+
+    describe 'remove', ->
+      it 'simple', ->
+        f = toRamda {remove: 'o', id: 2}
+        [newData, _] = f MOCK
+        eq null, newData.o[2]
+
+      it 'throws if no data', ->
+        throws /data has no entity called 'qwe'/, ->
+          toRamda({remove: 'qwe', id: 1})(MOCK)
+
+      it 'throws if no entity with id', ->
+        throws /no entity of type 'o' with id=999/, ->
+          toRamda({remove: 'o', id: 999})(MOCK)
 
     describe 'create = update', ->
       it 'simple', ->

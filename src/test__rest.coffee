@@ -6,7 +6,7 @@ eq = flip assert.strictEqual
 deepEq = flip assert.deepEqual
 throws = (re, f) -> assert.throws f, re
 
-describe.only 'rest', ->
+describe 'rest', ->
 
   describe 'toRest', ->
     describe 'many', ->
