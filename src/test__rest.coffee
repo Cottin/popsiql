@@ -61,7 +61,7 @@ describe 'rest', ->
         res = toRest {remove: 'o', id: 1}
         deepEq {method: 'DELETE', url: 'o/1'}, res
 
-  describe.only 'fromRest', ->
+  describe 'fromRest', ->
     describe 'many', ->
       it 'only entity', ->
         deepEq {many: 'o'}, fromRest({url: 'o', method: 'GET'})

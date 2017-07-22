@@ -121,8 +121,12 @@ _create = (query) -> (data) ->
 	if isNil query.data.id 
 		id = nextId keys(data[entity])
 		newObj = merge query.data, {id}
-		return set lensPath([entity, id]), newObj, data
+		newData = set lensPath([entity, id]), newObj, data
+		return [newData, id]
 	else
+		if has query.data.id, data[entity]
+			msg = "cannot create '#{entity}', id=#{query.data.id} already exists: " + sify(query)
+			throw new Error msg
 		return set lensPath([entity, query.data.id]), query.data, data
 
 

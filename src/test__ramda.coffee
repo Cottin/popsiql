@@ -13,7 +13,7 @@ MOCK =
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
-describe 'ramda', ->
+describe.only 'ramda', ->
   describe 'toRamda', ->
     describe 'many and one', ->
       it 'simple', ->
@@ -152,8 +152,12 @@ describe 'ramda', ->
 
       it 'no id', ->
         f = toRamda {create: 'o', data: {n: 'r'}}
-        newData = f MOCK
-        deepEq {id: 5, n: 'r'}, newData.o[5]
+        [newData, newId] = f MOCK
+        deepEq {id: 5, n: 'r'}, newData.o[newId]
+
+      it 'already exists', ->
+        throws /cannot create 'o', id=4 already exists/, ->
+          toRamda({create: 'o', data: {id: 4, n: 'r'}})(MOCK)
 
   describe 'nextId', ->
     it 'int', ->
