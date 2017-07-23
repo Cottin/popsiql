@@ -1,5 +1,5 @@
 ___ = module.exports
-{__, allPass, append, complement, compose, contains, dissoc, dissocPath, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, lensPath, lt, lte, map, max, merge, project, prop, propEq, propSatisfies, props, remove, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
+{__, allPass, append, complement, compose, contains, dissoc, dissocPath, drop, equals, filter, flatten, gt, gte, has, head, isEmpty, isNil, keys, last, length, lensPath, lt, lte, map, max, merge, project, prop, propEq, propSatisfies, props, remove, replace, set, sort, take, test, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc, getPath, ysort} = require 'ramda-extras'
 co = compose
 utils = require './utils'
@@ -95,7 +95,14 @@ _get = (query) -> (data) ->
 	{fields} = query
 	if fields
 		data_ = project fields, data_
-	
+
+	op = utils.getOp(query)
+	if op == 'one'
+		vals = values data_
+		if length(vals) > 1
+			throw new Error 'one-query returned more than one item: ' + sify(query)
+		return cc head, values, data_
+
 	return data_
 
 	# if type(data_) == 'Object' then return cc head, values, data_

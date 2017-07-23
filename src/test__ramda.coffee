@@ -13,9 +13,22 @@ MOCK =
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
-describe.only 'ramda', ->
+describe 'ramda', ->
   describe 'toRamda', ->
-    describe 'many and one', ->
+    describe.only 'one', ->
+      it 'simple id', ->
+        f = toRamda {one: 'project', id: 1}
+        deepEq {id: 1, a: 'a1'}, f(MOCK)
+
+      it 'where multiple', ->
+        f = toRamda {one: 'user', where: {a: {neq: 1}}}
+        throws /one-query returned more than one item/, -> f(MOCK)
+
+      it 'where', ->
+        f = toRamda {one: 'user', where: {a: {eq: 1}}}
+        deepEq {a: 1, b: 1}, f(MOCK)
+          
+    describe 'many', ->
       it 'simple', ->
         f = toRamda {many: 'user'}
         deepEq MOCK.user, f(MOCK)
@@ -63,11 +76,8 @@ describe.only 'ramda', ->
         it 'null not empty', ->
           f = toRamda {many: 'user', where: {a: {eq: 9}}}
           eq null, f(MOCK)
-          
+
       describe 'id', ->
-        it 'one', ->
-          f = toRamda {one: 'project', id: 1}
-          deepEq {1: {id: 1, a: 'a1'}}, f(MOCK)
         it 'multiple', ->
           f = toRamda {many: 'project', id: [1, 2]}
           deepEq {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}, f(MOCK)
