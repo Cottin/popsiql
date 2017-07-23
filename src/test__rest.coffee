@@ -41,6 +41,10 @@ describe 'rest', ->
         res = toRest {many: 'o', start: 5, max: 15}
         eq 'o?$start=5&$max=15', res.url
 
+      it 'many ids', ->
+        res = toRest {many: 'o', id: [1,2,3,4,5]}
+        eq 'o?id=1,2,3,4,5', res.url
+
     describe 'one', ->
       it 'id', ->
         res = toRest {one: 'o', id: 2}
@@ -102,6 +106,10 @@ describe 'rest', ->
         eq query.where.a.in[1], 23.5
         eq query.where.a.in[2], 'abc'
         eq query.where.a.in[3], false
+
+      it 'many ids', ->
+        res = fromRest {url: 'o?id=1,2,3,4,5', method: 'GET'}
+        deepEq {many: 'o', id: [1,2,3,4,5]}, res
 
     describe 'one', ->
       it 'id', ->

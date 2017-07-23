@@ -15,7 +15,7 @@ MOCK =
 
 describe 'ramda', ->
   describe 'toRamda', ->
-    describe.only 'one', ->
+    describe 'one', ->
       it 'simple id', ->
         f = toRamda {one: 'project', id: 1}
         deepEq {id: 1, a: 'a1'}, f(MOCK)

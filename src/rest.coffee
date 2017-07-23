@@ -11,6 +11,9 @@ toRest = (query) ->
 	entity = utils.getEntity query
 	switch utils.getOp query
 		when 'many'
+			if query.id
+				return {method: 'GET', url: "#{entity}?id=#{join(',', query.id)}"}
+
 			attrs = _toAttrs query
 			{start, max} = query
 			s = entity
@@ -41,6 +44,11 @@ fromRest = ({method, url, body}) ->
 				else url
 			{where, start, max} = _parseQueryString url
 
+			# handling of many ids
+			if where && where.id && test /,/, where.id
+				id = cc map(_autoConvert), split(','), where.id
+				return {many: entity, id}
+
 			query = {many: entity}
 			if !isNil(where) && !isEmpty(where) then query.where = where
 			if !isNil start then query.start = start
@@ -55,6 +63,8 @@ fromRest = ({method, url, body}) ->
 		when 'DELETE'
 			[_, entity, _id] = match /(\w*)\/(\d*)$/, url
 			return {remove: entity, id: _autoConvert(_id)}
+		else
+			throw new Error 'fromRest failed, unknown method: ' + method
 
 # o -> [s]   Converts the where-part to a list of attributes for query string
 _toAttrs = ({where}) ->
