@@ -1,10 +1,14 @@
-{compose, equals, flatten, gt, gte, head, insert, into, join, keys, lt, lte, map, pair, replace, set, toLower, toPairs, update, values, where} = R = require 'ramda' #auto_require:ramda
+{compose, equals, flatten, gt, gte, head, insert, into, join, keys, lt, lte, map, pair, replace, set, toLower, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
 # a -> s   Converts a value to its representation in an SQL query
 # eg. 't' -> '\'t\'',    [1,2,3] -> '[1,2,3]'
-val = (v) -> cc replace(/"/g, "'"), JSON.stringify, v
+val = (v) ->
+	if type(v) == 'Array'
+		s = cc replace(/"/g, "'"), JSON.stringify, v
+		return cc replace(/^\[/, '('), replace(/\]$/, ')'), s
+	else cc replace(/"/g, "'"), JSON.stringify, v
 
 # [k, v] -> s   Converts a key-value pair to its representation in SQL
 keyVal = ([k, v]) -> "#{k} = #{val(v)}"

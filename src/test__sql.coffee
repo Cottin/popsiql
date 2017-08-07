@@ -26,7 +26,7 @@ describe 'sql', ->
         res = toSql {many: 'User', where}
         sql = 'select * from user
         where a = 1 and a <> 1 and a > 1 and a >= 1 and a < 1 and
-        a <= 1 and b in [1,2] and b not in [1,2] and b like \'test%\''
+        a <= 1 and b in (1,2) and b not in (1,2) and b like \'test%\''
         eq sql, res
       it 'implicit eq', ->
         res = toSql {many: 'User', where: {a: 1}}
