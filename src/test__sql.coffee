@@ -1,6 +1,6 @@
 assert = require('assert')
 {toSql} = require './sql'
-{all, flip, gt, gte, insert, into, lt, lte, test, values, where} = require 'ramda' #auto_require:ramda
+{add, all, flip, gt, gte, insert, into, lt, lte, test, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
 deepEq = flip assert.deepEqual
@@ -11,37 +11,44 @@ describe 'sql', ->
   describe 'toSql', ->
     describe 'one', ->
       it 'simple', ->
-        eq 'select * from user where id = 1', toSql {one: 'User', where: {id: 1}}
+        eq 'select * from tbl where id = 1', toSql {one: 'Tbl', where: {id: 1}}
     describe 'many', ->
       it 'simple', ->
-        eq 'select * from user', toSql {many: 'User'}
+        eq 'select * from "user"', toSql {many: 'User'}
       it 'fields', ->
         res = toSql {many: 'User', fields: ['id', 'name']}
-        eq 'select id, name from user', res
+        eq 'select id, name from "user"', res
       it 'where (all predicates and multiple predicates per column)', ->
         where =
           a: {eq: 1, neq: 1, gt: 1, gte: 1, lt: 1, lte: 1}
           b: {in: [1,2], nin: [1,2], like: 'test%'}
 
         res = toSql {many: 'User', where}
-        sql = 'select * from user
+        sql = 'select * from "user"
         where a = 1 and a <> 1 and a > 1 and a >= 1 and a < 1 and
         a <= 1 and b in (1,2) and b not in (1,2) and b like \'test%\''
         eq sql, res
       it 'implicit eq', ->
         res = toSql {many: 'User', where: {a: 1}}
-        eq 'select * from user where a = 1', res
+        eq 'select * from "user" where a = 1', res
     describe 'create', ->
       it 'simple', ->
-        sql = 'insert into user (a,b)
+        sql = 'insert into "user" (a,b)
         values (1,\'t\')'
         res = toSql {create: 'user', data: {a: 1, b: 't'}}
         eq sql, res
       it 'simple with id', ->
-        sql = 'insert into user (id,a,b)
+        sql = 'insert into tbl (id,a,b)
         values (1,1,\'t\')'
-        res = toSql {create: 'user', data: {id: 1, a: 1, b: 't'}}
+        res = toSql {create: 'tbl', data: {id: 1, a: 1, b: 't'}}
         eq sql, res
+    describe 'reserved keywords', ->
+      it 'select', ->
+        eq 'select "alter" from "user" where "add" = 1', toSql {one: 'User', fields: ['alter'], where: {add: 1}}
+      it 'create', ->
+        res = toSql {create: 'User', data: {add: 1, all: 't'}}
+        eq 'insert into "user" ("add","all") values (1,\'t\')', res
+
     # describe 'push', ->
     #   it 'simple', ->
     #     sql = 'insert into user (a, b)

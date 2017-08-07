@@ -1,4 +1,4 @@
-{compose, equals, flatten, gt, gte, head, insert, into, join, keys, lt, lte, map, pair, replace, set, toLower, toPairs, type, update, values, where} = R = require 'ramda' #auto_require:ramda
+{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, repeat, replace, set, sum, toLower, toPairs, trim, type, union, update, values, view, where} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
@@ -10,8 +10,16 @@ val = (v) ->
 		return cc replace(/^\[/, '('), replace(/\]$/, ')'), s
 	else cc replace(/"/g, "'"), JSON.stringify, v
 
+
+# https://www.drupal.org/docs/develop/coding-standards/list-of-sql-reserved-words
+reservedWords = ['absolute', 'action', 'add', 'all', 'allocate', 'alter', 'and', 'any', 'are', 'as', 'asc', 'assertion', 'at', 'authorization', 'avg', 'begin', 'between', 'bit', 'bit_length', 'both', 'by', 'call', 'cascade', 'cascaded', 'case', 'cast', 'catalog', 'char', 'char_length', 'character', 'character_length', 'check', 'close', 'coalesce', 'collate', 'collation', 'column', 'commit', 'condition', 'connect', 'connection', 'constraint', 'constraints', 'contains', 'continue', 'convert', 'corresponding', 'count', 'create', 'cross', 'current', 'current_date', 'current_path', 'current_time', 'current_timestamp', 'current_user', 'cursor', 'date', 'day', 'deallocate', 'dec', 'decimal', 'declare', 'default', 'deferrable', 'deferred', 'delete', 'desc', 'describe', 'descriptor', 'deterministic', 'diagnostics', 'disconnect', 'distinct', 'do', 'domain', 'double', 'drop', 'else', 'elseif', 'end', 'escape', 'except', 'exception', 'exec', 'execute', 'exists', 'exit', 'external', 'extract', 'false', 'fetch', 'first', 'float', 'for', 'foreign', 'found', 'from', 'full', 'function', 'get', 'global', 'go', 'goto', 'grant', 'group', 'handler', 'having', 'hour', 'identity', 'if', 'immediate', 'in', 'indicator', 'initially', 'inner', 'inout', 'input', 'insensitive', 'insert', 'int', 'integer', 'intersect', 'interval', 'into', 'is', 'isolation', 'join', 'key', 'language', 'last', 'leading', 'leave', 'left', 'level', 'like', 'local', 'loop', 'lower', 'match', 'max', 'min', 'minute', 'module', 'month', 'names', 'national', 'natural', 'nchar', 'next', 'no', 'not', 'null', 'nullif', 'numeric', 'octet_length', 'of', 'on', 'only', 'open', 'option', 'or', 'order', 'out', 'outer', 'output', 'overlaps', 'pad', 'parameter', 'partial', 'path', 'position', 'precision', 'prepare', 'preserve', 'primary', 'prior', 'privileges', 'procedure', 'public', 'read', 'real', 'references', 'relative', 'repeat', 'resignal', 'restrict', 'return', 'returns', 'revoke', 'right', 'rollback', 'routine', 'rows', 'schema', 'scroll', 'second', 'section', 'select', 'session', 'session_user', 'set', 'signal', 'size', 'smallint', 'some', 'space', 'specific', 'sql', 'sqlcode', 'sqlerror', 'sqlexception', 'sqlstate', 'sqlwarning', 'substring', 'sum', 'system_user', 'table', 'temporary', 'then', 'time', 'timestamp', 'timezone_hour', 'timezone_minute', 'to', 'trailing', 'transaction', 'translate', 'translation', 'trim', 'true', 'undo', 'union', 'unique', 'unknown', 'until', 'update', 'upper', 'usage', 'user', 'using', 'value', 'values', 'varchar', 'varying', 'view', 'when', 'whenever', 'where', 'while', 'with', 'work', 'write', 'year', 'zone']
+# s -> s   Quotes a string if it feels needed
+q = (s) ->
+	if contains toLower(s), reservedWords then '"' + s + '"'
+	else s
+
 # [k, v] -> s   Converts a key-value pair to its representation in SQL
-keyVal = ([k, v]) -> "#{k} = #{val(v)}"
+keyVal = ([k, v]) -> "#{q(k)} = #{val(v)}"
 
 # o -> s   Converts an object to its representation in an SQL query
 # eg. {a: 1, b: 't'} -> 'a = 1, b = \'t\''
@@ -21,15 +29,15 @@ objToCols = co join(', '), map(keyVal), toPairs
 # eg. 'name' -> (['eq', 'elin']) -> 'name = \'elin\''
 toPred = (k0) -> ([k, v]) ->
 	switch k
-		when 'eq' then "#{k0} = #{val(v)}"
-		when 'neq' then "#{k0} <> #{val(v)}"
-		when 'gt' then "#{k0} > #{val(v)}"
-		when 'gte' then "#{k0} >= #{val(v)}"
-		when 'lt' then "#{k0} < #{val(v)}"
-		when 'lte' then "#{k0} <= #{val(v)}"
-		when 'in' then "#{k0} in #{val(v)}"
-		when 'nin' then "#{k0} not in #{val(v)}"
-		when 'like' then "#{k0} like #{val(v)}"
+		when 'eq' then "#{q(k0)} = #{val(v)}"
+		when 'neq' then "#{q(k0)} <> #{val(v)}"
+		when 'gt' then "#{q(k0)} > #{val(v)}"
+		when 'gte' then "#{q(k0)} >= #{val(v)}"
+		when 'lt' then "#{q(k0)} < #{val(v)}"
+		when 'lte' then "#{q(k0)} <= #{val(v)}"
+		when 'in' then "#{q(k0)} in #{val(v)}"
+		when 'nin' then "#{q(k0)} not in #{val(v)}"
+		when 'like' then "#{q(k0)} like #{val(v)}"
 
 # [s, a] -> [s]   Builds an array of predicate strings for the property k
 toPreds = ([k, v]) ->
@@ -50,21 +58,23 @@ _where = (query) ->
 _get = (query) ->
 	{fields} = query
 	table = toLower(query.many || query.one)
-	cols = if fields then join(', ', fields) else '*'
-	return "select #{cols} from #{table}" + _where(query)
+	cols =
+		if fields then cc join(', '), map(q), fields
+		else '*'
+	return "select #{cols} from #{q(table)}" + _where(query)
 
 # o -> s   Builds the UPDATE query from the query object
 _set = (query) ->
 	table = cc head, keys, query.set
 	cols = objToCols query.set[table]
-	return "update #{table} set #{cols}" + _where(query)
+	return "update #{q(table)} set #{cols}" + _where(query)
 
 # o -> s   Builds the INSERT query from the query object
 _create = (query) ->
 	table = toLower query.create
-	cols = cc join(','), keys, query.data
+	cols = cc join(','), map(q), keys, query.data
 	vals = cc join(','), map(val), values, query.data
-	return "insert into #{table} (#{cols}) values (#{vals})"
+	return "insert into #{q(table)} (#{cols}) values (#{vals})"
 
 # o -> s   Converts a popsiql query to a SQL query
 exports.toSql = toSql = (query) ->
