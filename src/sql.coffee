@@ -56,13 +56,14 @@ _set = (query) ->
 	return "update #{table} set #{cols}" + _where(query)
 
 # o -> s   Builds the INSERT query from the query object
-_push = (query) ->
-	table = cc head, keys, query.push
-	cols = objToCols query.push[table]
-	return "insert into #{table} values (#{cols})"
+_create = (query) ->
+	table = toLower query.create
+	cols = cc join(','), keys, query.data
+	vals = cc join(','), map(val), values, query.data
+	return "insert into #{table} (#{cols}) values (#{vals})"
 
 # o -> s   Converts a popsiql query to a SQL query
 exports.toSql = toSql = (query) ->
 	if query.many || query.one then return _get query
-	# else if query.set then return _set query
+	else if query.create then return _create query
 	# else if query.push then return _push query
