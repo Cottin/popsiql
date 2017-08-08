@@ -44,10 +44,18 @@ describe 'sql', ->
         eq sql, res
     describe 'reserved keywords', ->
       it 'select', ->
-        eq 'select "alter" from "user" where "add" = 1', toSql {one: 'User', fields: ['alter'], where: {add: 1}}
+        res = toSql {one: 'User', fields: ['alter'], where: {add: 1}}
+        eq 'select "alter" from "user" where "add" = 1', res
       it 'create', ->
         res = toSql {create: 'User', data: {add: 1, all: 't'}}
         eq 'insert into "user" ("add","all") values (1,\'t\')', res
+    describe 'camelCase', ->
+      it 'select', ->
+        res = toSql {one: 'Image', fields: ['imageUrl']}
+        eq 'select "imageUrl" from image', res
+      it 'create', ->
+        res = toSql {create: 'User', data: {camelCase: 1}}
+        eq 'insert into "user" ("camelCase") values (1)', res
 
     # describe 'push', ->
     #   it 'simple', ->
