@@ -56,6 +56,10 @@ describe 'sql', ->
       it 'create', ->
         res = toSql {create: 'User', data: {camelCase: 1}}
         eq 'insert into "user" ("camelCase") values (1)', res
+    describe 'removeAll', ->
+      it 'simple', ->
+        res = toSql {removeAll: 'user'}
+        eq 'delete from "user"', res
 
     # describe 'push', ->
     #   it 'simple', ->

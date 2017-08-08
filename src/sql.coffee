@@ -1,4 +1,4 @@
-{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, repeat, replace, set, sum, test, toLower, toPairs, trim, type, union, update, values, view, where} = R = require 'ramda' #auto_require:ramda
+{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, repeat, replace, set, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
@@ -78,8 +78,12 @@ _create = (query) ->
 	vals = cc join(','), map(val), values, query.data
 	return "insert into #{q(table)} (#{cols}) values (#{vals})"
 
+# o -> s   Builds a DELETE query without any where clause
+_removeAll = (query) -> "delete from #{q(query.removeAll)}"
+
 # o -> s   Converts a popsiql query to a SQL query
 exports.toSql = toSql = (query) ->
 	if query.many || query.one then return _get query
 	else if query.create then return _create query
+	else if query.removeAll then return _removeAll query
 	# else if query.push then return _push query
