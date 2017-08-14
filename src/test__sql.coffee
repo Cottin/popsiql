@@ -3,7 +3,7 @@ assert = require('assert')
 {add, all, flip, gt, gte, insert, into, lt, lte, test, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (f) -> assert.throws f, Error
 
 

@@ -4,7 +4,7 @@ assert = require('assert')
 {mergeMany} = require 'ramda-extras'
 
 eq = flip assert.equal
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (f) -> assert.throws f, Error
 
 mockRef =

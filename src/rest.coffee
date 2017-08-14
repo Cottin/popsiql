@@ -9,10 +9,13 @@ toRest = (query) ->
 	utils.validate query # we want to assume we're working with a valid query
 
 	entity = utils.getEntity query
-	switch utils.getOp query
-		when 'many'
-			if query.id
+	op = utils.getOp query
+	switch op
+		when 'many', 'one'
+			if query.id && op == 'many'
 				return {method: 'GET', url: "#{entity}?id=#{join(',', query.id)}"}
+			else if query.id && op == 'one'
+				return {method: 'GET', url: "#{entity}/#{query.id}"}
 
 			attrs = _toAttrs query
 			{start, max} = query
@@ -21,8 +24,6 @@ toRest = (query) ->
 			if !isNil max then attrs.push("$max=#{max}")
 			if !isEmpty attrs then s += '?' + join('&', attrs)
 			return {method: 'GET', url: s}
-		when 'one'
-			return {method: 'GET', url: "#{entity}/#{query.id}"}
 		when 'create'
 			return {method: 'POST', url: entity, body: query.data}
 		when 'update'

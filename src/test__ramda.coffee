@@ -3,7 +3,7 @@ assert = require('assert')
 {empty, flip, gt, gte, has, lt, lte, map, max, pluck, project, remove, sort, type, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (re, f) -> assert.throws f, re
 
 MOCK =

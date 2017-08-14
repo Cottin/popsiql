@@ -4,7 +4,7 @@ mongo = require './mongo'
 {mergeMany, changedPaths, pickRec} = require 'ramda-extras'
 
 eq = flip assert.strictEqual
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (re, f) -> assert.throws f, re
 peq = (val, promise) -> promise.then (v) -> eq val, v
 pdeepEq = (val, promise) -> promise.then (v) -> deepEq val, v

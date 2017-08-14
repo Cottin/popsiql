@@ -1,9 +1,9 @@
 assert = require('assert')
 {toSuperGlue} = require './superglue'
-{__, apply, eq, flip, inc, keys, merge, path, remove} = require 'ramda' #auto_require:ramda
+{__, apply, flip, inc, keys, merge, path, remove, set} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (f) -> assert.throws f, Error
 
 

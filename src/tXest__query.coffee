@@ -1,10 +1,10 @@
 assert = require 'assert'
-{empty, eq, flip, merge} = require 'ramda' #auto_require:ramda
+{empty, flip, merge, set} = require 'ramda' #auto_require:ramda
 {toNestedQuery, toFlatQuery, toQueryList, isValidQuery} = require './query'
 util = require 'util'
 
 eq = flip assert.equal
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (f) -> assert.throws f, Error
 
 describe 'query', ->

@@ -1,9 +1,9 @@
 assert = require('assert')
 {toRamda} = require './ramda'
-{eq, flip, keys, merge, remove} = require 'ramda' #auto_require:ramda
+{flip, keys, merge, remove, set} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.equal
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (f) -> assert.throws f, Error
 
 

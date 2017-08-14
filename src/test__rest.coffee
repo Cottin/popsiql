@@ -3,7 +3,7 @@ assert = require 'assert'
 {fromRest, toRest} = url = require '../src/rest'
 
 eq = flip assert.strictEqual
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (re, f) -> assert.throws f, re
 
 describe 'rest', ->
@@ -49,6 +49,10 @@ describe 'rest', ->
       it 'id', ->
         res = toRest {one: 'o', id: 2}
         eq 'o/2', res.url
+
+      it 'where', ->
+        res = toRest {one: 'o', where: {a: 1, b: '2'}}
+        eq 'o?a=1&b=2', res.url
 
     describe 'create', ->
       it 'simple', ->

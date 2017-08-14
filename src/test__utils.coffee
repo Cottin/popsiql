@@ -3,7 +3,7 @@ utils = require './utils'
 {flip, merge, remove, test, update, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
-deepEq = flip assert.deepEqual
+deepEq = flip assert.deepStrictEqual
 throws = (re, f) -> assert.throws f, re
 
 
