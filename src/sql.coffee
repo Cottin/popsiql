@@ -1,4 +1,4 @@
-{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, repeat, replace, set, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
+{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, isNil, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, repeat, replace, set, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
@@ -78,6 +78,13 @@ _create = (query) ->
 	vals = cc join(','), map(val), values, query.data
 	return "insert into #{q(table)} (#{cols}) values (#{vals})"
 
+# o -> s   Builds the UPDATE query from the query object
+_update = (query) ->
+	if isNil query.id then throw new Error 'update query missing id'
+	table = toLower query.update
+	kvs = cc join(', '), map(keyVal), toPairs, query.data
+	return "update #{q(table)} set #{kvs} where id=#{query.id}"
+
 # o -> s   Builds a DELETE query without any where clause
 _removeAll = (query) -> "delete from #{q(query.removeAll)}"
 
@@ -85,5 +92,6 @@ _removeAll = (query) -> "delete from #{q(query.removeAll)}"
 exports.toSql = toSql = (query) ->
 	if query.many || query.one then return _get query
 	else if query.create then return _create query
+	else if query.update then return _update query
 	else if query.removeAll then return _removeAll query
 	# else if query.push then return _push query
