@@ -31,6 +31,11 @@ toRest = (query) ->
 			return {method: 'PUT', url: "#{entity}/#{query.id}", body}
 		when 'remove'
 			return {method: 'DELETE', url: "#{entity}/#{query.id}"}
+		when 'at'
+			{at, exec, data} = query
+			if isNil exec
+				throw new Error "missing 'exec' for operation 'at', query: " + JSON.stringify(query)
+			return {method: 'POST', url: "#{at}/exec/#{exec}", body: data}
 
 # s -> o   Converts a rest-url to a popsiql query
 fromRest = ({method, url, body}) ->
@@ -56,7 +61,12 @@ fromRest = ({method, url, body}) ->
 			if !isNil max then query.max = max
 			return query
 		when 'POST'
-			return {create: url, data: body}
+			RE = /(.*)\/exec\/(.*)/
+			if test RE, url
+				[_, at, exec] = match RE, url
+				return {at, exec, data: body}
+			else
+				return {create: url, data: body}
 		when 'PUT'
 			[_, entity, _id] = match /(\w*)\/(\d*)$/, url
 			id = _autoConvert _id

@@ -69,6 +69,15 @@ describe 'rest', ->
         res = toRest {remove: 'o', id: 1}
         deepEq {method: 'DELETE', url: 'o/1'}, res
 
+    describe 'at..exec', ->
+      it 'simple', ->
+        res = toRest {at: 'o', exec: 'k', data: {a: 1, b: 'abc'}}
+        deepEq {method: 'POST', url: 'o/exec/k', body: {a: 1, b: 'abc'}}, res
+
+      it 'no exec', ->
+        throws /missing 'exec' for operation 'at'/, ->
+          toRest {at: 'o', data: {a: 1, b: 2}}
+
   describe 'fromRest', ->
     describe 'many', ->
       it 'only entity', ->
@@ -137,6 +146,12 @@ describe 'rest', ->
         res = fromRest {method: 'DELETE', url: 'o/1'}
         deepEq {remove: 'o', id: 1}, res
         eq 1, res.id
+
+    describe 'at..exec', ->
+      it 'simple', ->
+        res = fromRest {method: 'POST', url: 'o/exec/k', body: {a: 1, b: 'abc'}}
+        deepEq {at: 'o', exec: 'k', data: {a: 1, b: 'abc'}}, res
+
 
 
 

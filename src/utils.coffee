@@ -4,8 +4,8 @@
 _s = JSON.stringify
 
 # o -> s   # returns the entity from a popsiql query object
-getEntity = ({one, many, create, update, remove, merge}) ->
-	return one || many || create || update || remove || merge
+getEntity = ({one, many, create, update, remove, merge, at}) ->
+	return one || many || create || update || remove || merge || at
 
 # o -> s   # returns the operation from a popsiql query object
 getOp = (query) ->
@@ -16,6 +16,7 @@ getOp = (query) ->
 	else if hasIt 'update' then 'update'
 	else if hasIt 'remove' then 'remove'
 	else if hasIt 'merge' then 'merge'
+	else if hasIt 'at' then 'at'
 	else null
 
 # o -> void   # throws an error if query isn't a valid popsiql query
