@@ -1,6 +1,6 @@
 assert = require('assert')
 {toSql} = require './sql'
-{add, all, flip, gt, gte, insert, into, lt, lte, set, test, update, values, where} = require 'ramda' #auto_require:ramda
+{add, all, flip, gt, gte, insert, into, lt, lte, remove, set, test, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
 deepEq = flip assert.deepStrictEqual
@@ -47,7 +47,7 @@ describe 'sql', ->
         eq sql, res
     describe 'update', ->
       it 'simple', ->
-        sql = 'update "user" set a = 1, b = \'t\' where id=1'
+        sql = 'update "user" set a = 1, b = \'t\' where id = 1'
         res = toSql {update: 'user', id: 1, data: {a: 1, b: 't'}}
         eq sql, res
       it 'no id', ->
@@ -67,6 +67,13 @@ describe 'sql', ->
       it 'create', ->
         res = toSql {create: 'User', data: {camelCase: 1}}
         eq 'insert into "user" ("camelCase") values (1)', res
+    describe 'remove', ->
+      it 'simple', ->
+        res = toSql {remove: 'user', id: 1}
+        eq 'delete from "user" where id = 1', res
+      it 'no id', ->
+        throws /remove query missing id/, ->
+          toSql {remove: 'tbl', where: {id: 1}}
     describe 'removeAll', ->
       it 'simple', ->
         res = toSql {removeAll: 'user'}
