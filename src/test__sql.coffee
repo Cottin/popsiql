@@ -11,7 +11,7 @@ describe 'sql', ->
   describe 'toSql', ->
     describe 'one', ->
       it 'simple', ->
-        eq 'select * from tbl where id = 1', toSql {one: 'Tbl', where: {id: 1}}
+        eq 'select * from tbl where id = 1', toSql {one: 'Tbl', id: 1}
     describe 'many', ->
       it 'simple', ->
         eq 'select * from "user"', toSql {many: 'User'}
@@ -31,6 +31,9 @@ describe 'sql', ->
       it 'implicit eq', ->
         res = toSql {many: 'User', where: {a: 1}}
         eq 'select * from "user" where a = 1', res
+      it 'many ids', ->
+        res = toSql {many: 'o', id: [1,2,3,4,5]}
+        eq 'select * from o where id in (1,2,3,4,5)', res
     describe 'create', ->
       it 'simple', ->
         sql = 'insert into "user" (a,b)

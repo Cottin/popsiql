@@ -52,7 +52,11 @@ toPreds = ([k, v]) ->
 # o -> s   Builds the where-part of the SQL query from the query object
 # eg. {where: {a: {gt: 1, lt: 5}}} -> ' where a > 1 and a < 5'
 _where = (query) ->
-	{where} = query
+	{where, id} = query
+	if id
+		if type(id) == 'Array' then return " where id in #{val(id)}"
+		else return " where id = #{val(id)}"
+
 	if !where then return ''
 	return ' where ' + cc join(' and '), flatten, map(toPreds), toPairs, where
 
