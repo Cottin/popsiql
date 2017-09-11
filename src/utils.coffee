@@ -26,8 +26,8 @@ validate = (query) ->
 	if has('one', query) && type(query.id) == 'Array' && length(query.id) != 1
 		throw new Error "'one'-query cannot ask for more than one id:" + _s(query)
 	if has('many', query) && !isNil(query.id)
-		if type(query.id) != 'Array' || length(query.id) < 2
-			throw new Error "'many'-query cannot ask for only one id:" + _s(query)
+		if type(query.id) != 'Array'
+			throw new Error "'many'-query requires an array for the id argument:" + _s(query)
 
 	validateWhere query.where
 

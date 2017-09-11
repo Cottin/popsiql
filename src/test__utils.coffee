@@ -32,8 +32,11 @@ describe 'utils', ->
 		it 'one with one id in array', ->
 			utils.validate {one: 'o', id: [1]} # if it throws, test fails
 
-		it 'many with one id', ->
-			throws /'many'-query cannot ask for only one id:/, ->
+		it 'many with one id in array', ->
+			utils.validate {many: 'o', id: [1]} # if it throws, test fails
+
+		it 'many with one id but no array', ->
+			throws /'many'-query requires an array for the id argument/, ->
 				utils.validate {many: 'o', id: 1}
 
 	describe 'getOp', ->
