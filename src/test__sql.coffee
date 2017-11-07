@@ -1,6 +1,6 @@
 assert = require('assert')
 {toSql} = require './sql'
-{add, all, flip, gt, gte, insert, into, lt, lte, remove, set, test, update, values, where} = require 'ramda' #auto_require:ramda
+{add, all, flip, gt, gte, insert, into, lt, lte, remove, set, sort, test, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
 deepEq = flip assert.deepStrictEqual
@@ -34,6 +34,14 @@ describe 'sql', ->
       it 'many ids', ->
         res = toSql {many: 'o', id: [1,2,3,4,5]}
         eq 'select * from o where id in (1,2,3,4,5)', res
+      describe 'sort', ->
+        it 'asc', ->
+          res = toSql {many: 'o', sort: 'n'}
+          eq 'select * from o order by n', res
+        it 'desc', ->
+          res = toSql {many: 'o', sort: [{n: 'desc'}, {k: 'asc'}]}
+          eq 'select * from o order by n desc, k asc', res
+
     describe 'create', ->
       it 'simple', ->
         sql = 'insert into "user" (a,b)

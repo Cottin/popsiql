@@ -1,4 +1,4 @@
-{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, isNil, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, remove, repeat, replace, set, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
+{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, isNil, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, remove, repeat, replace, set, sort, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
 {cc} = require 'ramda-extras'
 co = compose
 
@@ -60,6 +60,18 @@ _where = (query) ->
 	if !where then return ''
 	return ' where ' + cc join(' and '), flatten, map(toPreds), toPairs, where
 
+_sort = (query) ->
+	{sort} = query
+	if !sort then return ''
+
+	if type(sort) == 'Array'
+		sortToStr = (s) ->
+			k = cc head, keys, s
+			return k + ' ' + if test /desc/, s[k] then 'desc' else 'asc'
+		return " order by " + cc join(', '), map(sortToStr), sort
+	else return " order by #{sort}"
+
+
 # o -> s   Builds the SELECT query from the query object
 _get = (query) ->
 	{fields} = query
@@ -67,7 +79,7 @@ _get = (query) ->
 	cols =
 		if fields then cc join(', '), map(q), fields
 		else '*'
-	return "select #{cols} from #{q(table)}" + _where(query)
+	return "select #{cols} from #{q(table)}" + _where(query) + _sort(query)
 
 # o -> s   Builds the UPDATE query from the query object
 _set = (query) ->
