@@ -1,10 +1,10 @@
 {
   "name": "popsiql",
-  "version": "0.1.50",
+  "version": "0.1.51",
   "description": "Sweet and delicious \"data\"-queries in javascript",
   "main": "lib/popsiql.js",
   "scripts": {
-    "test": "mocha 'src/**/test__*.coffee' --watch --compilers coffee:coffee-script/register",
+    "test": "mocha '**/test__*.coffee' --watch --compilers coffee:coffee-script/register",
     "clean": "rimraf lib",
     "build": "coffee -o lib/ -c src/",
     "dist": "npm run clean && npm run build"

@@ -69,7 +69,7 @@ fromRest = ({method, url, body}) ->
 			if !isNil start then query.start = start
 			if !isNil max then query.max = max
 			if sort
-				if test /,/, sort
+				if test /,|--desc/, sort
 					query.sort = ymap split(',', sort), (s) ->
 						if test /--desc$/, s then {"#{replace(/--desc$/, '', s)}": 'desc'}
 						else {"#{s}": 'asc'}

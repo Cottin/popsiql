@@ -50,6 +50,10 @@ describe 'rest', ->
 					res = toRest {many: 'o', sort: 'n'}
 					eq 'o?$sort=n', res.url
 				it 'desc', ->
+					res = toRest {many: 'o', sort: [{n: 'desc'}]}
+					eq 'o?$sort=n--desc', res.url
+
+				it 'multi', ->
 					res = toRest {many: 'o', sort: [{n: 'desc'}, {k: 'asc'}]}
 					eq 'o?$sort=n--desc,k', res.url
 
@@ -137,6 +141,9 @@ describe 'rest', ->
 					res = fromRest {url: 'o?$sort=n', method: 'GET'}
 					deepEq {many: 'o', sort: 'n'}, res
 				it 'desc', ->
+					res = fromRest {url: 'o?$sort=n--desc', method: 'GET'}
+					deepEq {many: 'o', sort: [{n: 'desc'}]}, res
+				it 'multi', ->
 					res = fromRest {url: 'o?$sort=n--desc,k', method: 'GET'}
 					deepEq {many: 'o', sort: [{n: 'desc'}, {k: 'asc'}]}, res
 
