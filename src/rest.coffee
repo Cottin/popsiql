@@ -1,4 +1,4 @@
-{any, flatten, gte, indexOf, isEmpty, isNil, join, map, match, max, merge, omit, prop, remove, replace, split, test, toPairs, type, update, where} = R = require 'ramda' # auto_require:ramda
+{any, flatten, gte, head, indexOf, isEmpty, isNil, join, keys, map, match, max, merge, omit, prop, remove, replace, sort, split, test, toPairs, type, update, where} = R = require 'ramda' # auto_require:ramda
 {cc, mergeMany, ymap, yreduce, doto, change} = require 'ramda-extras'
 
 {predicates, parameters} = require './query'
@@ -18,10 +18,19 @@ toRest = (query) ->
 				return {method: 'GET', url: "#{entity}/#{query.id}"}
 
 			attrs = _toAttrs query
-			{start, max} = query
+			{start, max, sort} = query
 			s = entity
 			if !isNil start then attrs.push("$start=#{start}")
 			if !isNil max then attrs.push("$max=#{max}")
+			if sort
+				if type(sort) == 'Array'
+					sort_ = ymap sort, (o) ->
+						k = cc head, keys, o
+						if o[k] == 'desc' then "#{k}--desc"
+						else k
+					attrs.push("$sort=#{join(',', sort_)}")
+				else
+					attrs.push("$sort=#{sort}")
 			if !isEmpty attrs then s += '?' + join('&', attrs)
 			return {method: 'GET', url: s}
 		when 'create'
@@ -48,7 +57,7 @@ fromRest = ({method, url, body}) ->
 			entity =
 				if indexOf('?', url) != -1 then url.substr(0, indexOf('?', url))
 				else url
-			{where, start, max} = _parseQueryString url
+			{where, start, max, sort} = _parseQueryString url
 
 			# handling of many ids
 			if where && where.id && test /,/, where.id
@@ -59,6 +68,12 @@ fromRest = ({method, url, body}) ->
 			if !isNil(where) && !isEmpty(where) then query.where = where
 			if !isNil start then query.start = start
 			if !isNil max then query.max = max
+			if sort
+				if test /,/, sort
+					query.sort = ymap split(',', sort), (s) ->
+						if test /--desc$/, s then {"#{replace(/--desc$/, '', s)}": 'desc'}
+						else {"#{s}": 'asc'}
+				else query.sort = sort
 			return query
 		when 'POST'
 			RE = /(.*)\/exec\/(.*)/
@@ -102,13 +117,14 @@ _parseQueryString = (url) ->
 
 	attrs = doto url, replace(/^.*\?/, ''), split('&')
 	where = {}
-	start = max = null
+	start = max = sort = null
 	for attr in attrs
 		[left, right] = split '=', attr
 		[_, k, _v] = match /^(.*)\((.*)\)/, right # ex. gte(123)
 		if isNil k
 			if left == '$start' then start = _autoConvert right
 			else if left == '$max' then max = _autoConvert right
+			else if left == '$sort' then sort = right
 			else where[left] = _autoConvert right # implicit eq
 			continue
 		v =
@@ -116,7 +132,7 @@ _parseQueryString = (url) ->
 			else v = _autoConvert _v
 		where[left] ?= {}
 		where[left][k] = v
-	return {where, start, max}
+	return {where, start, max, sort}
 
 module.exports = {fromRest, toRest}
 

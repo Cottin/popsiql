@@ -4,7 +4,7 @@
   "description": "Sweet and delicious \"data\"-queries in javascript",
   "main": "lib/popsiql.js",
   "scripts": {
-    "test": "mocha '**/test__*.coffee' --watch --compilers coffee:coffee-script/register",
+    "test": "mocha 'src/**/test__*.coffee' --watch --compilers coffee:coffee-script/register",
     "clean": "rimraf lib",
     "build": "coffee -o lib/ -c src/",
     "dist": "npm run clean && npm run build"
