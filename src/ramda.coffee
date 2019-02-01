@@ -1,40 +1,90 @@
-{over, __, always, assocPath, gt, head, keys, last, length, lens, merge, omit, path, remove, split} = R = require 'ramda' #auto_require:ramda
-{cc, dropLast} = require 'ramda-extras'
+{allPass, compose, contains, curry, equals, flatten, gt, gte, isEmpty, join, keys, length, lt, lte, map, mapObjIndexed, pick, pickBy, replace, test, union, values, where} = R = require 'ramda' # auto_require: ramda
+{change, $} = RE = require 'ramda-extras' # auto_require: ramda-extras
+[] = [] #auto_sugar
 
-toRamda = (query) ->
-	if cc gt(__, 1), length, keys, query
-		throw new Error "toRamda only supports one key for the moment,
-		your keys: #{keys(query)}"
+{_expandQuery, _isSimple} = require './query'
 
-	k = cc head, keys, query
-	innerQuery = query[k]
+$$ = (data, functions...) -> compose(functions...)(data)
 
-	if cc gt(__, 1), length, keys, innerQuery
-		throw new Error "toRamda only supports one mutation per query key,
-		your keys: #{keys(innerQuery)}"
+preds = {}
 
-	mutation = cc head, keys, innerQuery
-	path_ = split '__', k
-	v = innerQuery[mutation]
-	f =
-		switch mutation
-			when '$set'
-				pathLens = lens path(path_), assocPath(path_)
-				over pathLens, always(v)
-			when '$merge'
-				pathLens = lens path(path_), assocPath(path_)
-				over pathLens, merge(__, v)
-			when '$remove'
-				if path_.length > 1
-					path__ = dropLast 1, path_
-					keyToRemove = last path_
-					pathLens = lens path(path__), assocPath(path__)
-					over pathLens, omit(keyToRemove)
-				else
-					omit path_
-			else throw new Error "toRamda only supports mutations
-			(no reads) for the moment and only some mutations"
+whereToComp = (where) ->
+	$$ where, allPass, flatten, values, mapObjIndexed (preds, field) ->
+		$$ preds, values, mapObjIndexed (v, op) ->
+			switch op 
+				when 'eq' then (o) -> equals o[field], v
+				when 'ne' then (o) -> !equals o[field], v
+				when 'gt' then (o) -> o[field] > v
+				when 'lt' then (o) -> o[field] < v
+				when 'gte' then (o) -> o[field] >= v
+				when 'lte' then (o) -> o[field] <= v
+				when 'in' then (o) -> contains o[field], v
+				when 'like' then (o) -> test new RegExp(replace(/%/g, '.*', v)), o[field]
+				when 'ilike' then (o) -> test new RegExp(replace(/%/g, '.*', v), 'i'), o[field]
+				when 'notlike' then (o) -> ! test new RegExp(replace(/%/g, '.*', v)), o[field]
+				when 'notilike' then (o) -> ! test new RegExp(replace(/%/g, '.*', v), 'i'), o[field]
 
-	return f
+readNode = curry (cache, node, join = null) ->
+	# NOTE: this one could probably be optimized quite a bit if needed
+	{entity, where: ʹwhere, fields, allFields, rels} = node
 
-module.exports = {toRamda}
+	where = if join then change ʹwhere, join else ʹwhere
+
+	vals = null
+	if isEmpty where then vals = $ cache[entity], values
+
+	else if where.id && $(where, keys, length, equals(1)) && $ where.id, keys, equals ['eq']
+		vals = [cache[entity][where.id.eq]]
+
+	else
+		comp = whereToComp(where)
+		vals = $ cache[entity], pickBy(whereToComp(where)), values, map(pick(allFields))
+
+	relFields = []
+	if rels
+		for val in vals
+			for k, rel of rels
+				[parentOnK, relOnK] = rel.parentOn
+				val[k] = readNode cache, rel, {[relOnK]: {eq: val[parentOnK]}}
+				relFields.push k
+
+	valsʹ = map pick(union fields, relFields), vals
+
+	if test /One〳?$/, node.parentMultiplicity then valsʹ[0]
+	else valsʹ
+
+	# return $ cache[entity], pickBy ({id, age}) -> id > 2 && id < 8 && age < 35 && age > 30
+
+
+
+###### MAIN ###################################################################
+module.exports =
+	write: (query, model, options = {}) ->
+	update: (query, model, options = {}) ->
+	remove: (query, model, options = {}) ->
+	read: (query, cache, model) ->
+		queries = _expandQuery query, model
+
+		# console.log JSON.stringify queries, null, 2
+
+		res = map readNode(cache), queries
+		# console.log 'res:', JSON.stringify res, null, 2
+
+		if _isSimple query then res.query else res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

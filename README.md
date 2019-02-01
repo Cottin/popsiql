@@ -1,203 +1,192 @@
-Cases:
+För JS:
+const query = {
+	Person: {where: {name: {ilike: 'el%'}}, fields: 'name,id',
+		roles: {where: {name: 'Lead developer'},
+			project: {where: {price: {gt: 50000}}, fields: 'name,price',
+				company: {fields: 'name',
+					femaleEmployees: {fields: 'salary'}
+				}
+			}
+		}
+	}
+}
 
-oneToMany
-oneToOne
-manyToMany
+〳〳
 
+x query 2.0
+	x query
+	x sql
+x create db
+x seed
+x sql create
+x new alter interface
+x expose endpoint
 
-models
-	Person:
-		fields: ['id', 'date', 'name']
-		associations:
-			Company: {oneToMany: 'Person.companyId=Company.id'}
-	Company:
-		fields:
-			id: 'int'
-			date: 'date'
+on/to
+x build result
+x ramda
+x smarter sql for conditions
 
-models
-	Person:
-		fields: 'id, date, name'
-		associations:
-			Company: {oneToMany: 'Person.companyId=Company.id'}
-	Company:
-		fields:
-			id: 'int'
-			date: 'date'
+fr
+x sublime integration
 
+lö
+x improve sublime integration
 
-query
-	Person:
-		include: 'Company,Group'
-		where: {Company__name: {gt: 2}}
-		order: 'Company.name, Company.id'
+sö
 
-	Persons:
-		include: 'Company,Group'
-		where: {Company__name: {gt: 2}}
-		order: 'Company.name, Company.id'
+3 dec = starta BEACH!
 
-	Insert_Person:
 
 
+SUBQUERIES
+- Utan beroenden
+- Med beroenden
 
-	many: 'Company'
-	include: 'Group'
-	where: {OR: {Company__name: {like: '%ab%'}, Company__id: {like: '%ab%'}}}
-	order: 'Company.name, Company.id'
+AGGREGATIONS
 
-query
-	Person:
-		include: ['Company', 'Group']
-		where: {Company__name: {gt: 2}}
-		order: ['Company.name', 'Company.id']
+- vanliga utan beroenden
+	count, sum, min, max, avg
+	noWomen: {employees: {person〳sex: 'F', ːid〳count}}
 
-query
-	Person:
-		include: [Company]
-		where: {Company__name: {gt: 2}}
-		order: [Company.name]
+- vanliga med beroenden
+	count, sum, min, max, avg
 
-query
-	Person:
-		join: {Company: 'Person.companyId=Company.id'}
-		where: {'Company.name': {gt: 2}}
-		order: ['Company.name']
+- enkla
+	noWeeksPassed: ({start, {global: {now}}}) -> df.differenceInWeeks(now, start)
 
+- nya frågor
+	workouts: ({userId, group: {start, end}}) ->
+		Workout: {userId, date: {gt: start, lt: end}}
 
-select * from Person p
-join Company c on p.companyId = c.id
-where c.name > 2
-order c.name
+- komponerade
+	avg: ({noWorkouts, {group: {noWeeksPassed}}}) -> noWorkouts / noWeeksPassed
 
 
+	lateEntries: ({dueDate}) ->
+		{entries: _ {date: {gt: dueDate}}}
 
 
 
 
+# NEXT, MVP!
 
+Group:
+	noWeeks: local
+	noWeeksPassed: similar state
+	isMember: similar state
 
+Member:
+	self: similar state
+	noWorkouts: this.workouts.count 
+	avg: / this.group.noWeeksPassed
+	workouts: workouts userId: this.user.id, date > this.group.start
 
 
 
+---
 
-models
-	Person:
-		fields: [:id, :date, :name]
-		associations:
-			Company: {oneToMany: :Person.companyId=Company.id}
-	Company:
-		fields:
-			id: :int
-			date: :date
+(1)me:
+	User: _ {id: 1}, 'id name avatar'
+		memberships: _ {}, 'id color goal'
+			group: _ {}, 'id name'
 
+{type: 'User', query: {id: {eq: 1}}, fields: 'id name avatar'} self.id == 1
+{type: 'Membership', query: {userId: 1}, fields: 'id color goal'} 0.id
+{type: 'group', query: {id: {in: [1,3,4]}}, fields: 'id name'} [1].groupId
 
 
+(3)members:
+	Member: _ {groupId: 4}, 'id, color, goal, avg, noWorkouts, workouts'
+		user: _ {}, 'id, name, avatar'
 
 
-models
-	Person:
-		fields: [$id, $date, $name]
-		associations:
-			Company: {oneToMany: :Person.companyId=Company.id}
-	Company:
-		fields:
-			id: :int
-			date: :date
+{type: 'Member', query: {groupId: {eq: 4}}, fields: 'id, color, goal, avg, noWorkouts'} group.id == self.groupIds
+{type: 'User', query: {id: {in: [1,3,5,2]}}, fields: 'id, name, avatar'}
+{type: 'Workout', query: {userId: {in: [1,3,5,2]}, date: {gt: '10apr', lt: '18nov'}},
+fields: 'id, date, activity'} 0.[userId] AND group(4).start, group(4).end
 
+select * from workout w
+join r_group_user m on w."user" = m."user"
+join "group" g on m."group" = g.id
+where w."user" in (1,2,3) and g.id in (select "group" from r_group_user m2 where m2."user" = 1)
 
+1. owner tar bort member
+{type: 'Member', op: 'd', id: 11} {id: 11, color: 2, userId: 1, ...}
+-> self.groupIds: [2, 3] ta bort 11
+2. owner byter namn på grupp
+{type: 'Group', op: 'u', id: 1} {id: 1, name: 'Children of Linköping'}
 
 
+clients:
+	c1:
+		queries:
+			3: 
+		self:
+			userId: 1
+			userIds: [1,3,4,5]
+			groupIds: [4,5,11]
 
+entities:
+	Member:
+		groupId:
+			4:
+				c1: ['members']
+				OR
+				c1: [3]
+		userId:
+			1:
+				c1: [1]
 
+	User:
+		id:
+			1: [c1]
+			3: [c1]
+			5: [c1]
+			2: [c1]
 
+	Workout:
+		userId:
+			1: [c1]
+			3: [c1]
+			5: [c1]
+			2: [c1]
 
-# Popsiql
-Plain Objects Producing Simply Implementable Query Language
 
-Popsiql is a way of expressing data-queries as simple javascript objects.
 
-Examples:
 
-# Get customer with id=1
-{one: 'Customer', id: 1}
 
-# Get rich people under 30
-{many: 'Person', where: {age: {lt: 30}, income: {gte: 1000000}}}
+{op: 'update', type: 'User', id: 3, fields: {avatar: ['a.jpg', 'b.jpg']}}
 
-# Get people with an 'x' in ther name and order by age
-{many: 'Person', where: {name: {like: '%x%'}}, sort: 'age'}
 
-# Create a new customer
-{create: 'Customer', data: {id: 10, name: 'Vandelay'}}
+User/3 avatar
 
-# Update a customer
-{update: 'Customer', id: 10, data: {name: 'Vandelay Industries', employees: 4}}
 
-# Delete a person
-{remove: 'Person', id: 3}
 
-# Partly update a person
-{merge: 'Person', id: 2, data: {age: 31}}
 
-Since these data-queries are simple javascript objects, they are quite easy to create, modify, read and work with. They are also so simple, that you can easily create an adapter translating the queries to any other language or technology in around 80 lines of code. Here are the included adapters:
 
-MS-SQL:
+https://cloud.google.com/solutions/real-time-gaming-with-node-js-websocket
 
-popsiql.toMSSQL({many: 'Person', where: {name: {like: '%x%'}}, sort: 'age'})
-# returns: "select * from Person where name like '%x%' order by age"
 
-Mongo:
 
-popsiql.toMongoAndExec({many: 'Person', where: {age: {gt: 30}}, max: 10}, colls)
-# does two things, 1: converts the query to mongo, 2: executes query on collections object you've passed as colls. (This assumes you're useing the mongodb npm module).
-# returns: colls['Person'].find({age: {$gt: 30}}).limit(10)
 
-URL (good for integration with REST-apis):
 
-popsiql.toURL({many: 'Customer', where: {employees: {gt: 200}}, sort: 'turnover'})
-# returns: "Customer?employees=gt(200)&__sort=turnover"
 
-popsiql.fromURL("Customer?employees=gt(200)&__sort=turnover")
-# return {many: 'Customer', where: {employees: {gt: 200}}, sort: 'turnover'}
 
-Firebase:
 
-# Comming soon...
 
-Ramda:
 
-# Comming soon...
 
 
-If you want to create your own adapter for a missing technology, have a look at the existing adapters for inspiration. It's easier than you might think, existing adapters are between 50-150 lines long.
 
-If you like the idea but want to have other capabilities, you can implement a subset or superset of the "language" in your adapter. For instance, the cache library [oblie](http://...) implements a superset of popsiql adding operations such as `edit`, `commit` and `revert`:
 
-# create a copy of person with id=3 to edit:
-{edit: 'Person', id: 3}
-# do some merges because he is one year older and just got married:
-{merge: 'Person', id: 3, data: {age: 42, name: 'Jerry Benes'}}
-# commit the changes:
-{commit: 'Person', id: 3}
-# ...or revert the changes:
-{revert: 'Person', id: 3}
 
-Read more about [oblie](http://...)
 
 
-This kind of it! If you want to learn more:
-- (Read the full api)[http://...]
-- or [Try out the interactive demo-page](http://...)
 
 
 
 
-todo:
-aggregate, group, count, avg, sum
-			# averages = {DB: {many: 'Workout', id: userIds, groupBy: 'userId',
-			# fields: [{count: '$count'}]}}
-			db.workouts.aggregate([{$group: {_id: '$user', count: {$sum: 1}}}])
 
 
 
@@ -216,437 +205,128 @@ aggregate, group, count, avg, sum
 
 
 
-# popsiql
 
-Plain Objects Producing Simply Implementable Query Languages
 
-Popsiql is a way of expressing a data-query as a simple javascript object. Popsiql consists of 2 things: the guidlines below and a core-specification of general purpose data-querying.
 
-## Guidlines
 
-	1. The data-query should be represented as a javascript object
-	2. Since there is no standardized way of how properties in an object is ordered across javascript engines (nor in the spec), naming of operations allowed in the data-query should be done so operations names don't collide.
 
-## Core specification
 
-### Operations
-The four core operations are `read`, `create`, `update` and `remove`.
 
-### Where-clasue
-eq | equals
-neq | not equals
-gt
-...
 
 
 
 
 
 
-# TO MOVE: Experimental:
 
-# När man läser
-1. Returnera det som finns lokalt och var nöjd (även med tomt resultat)
-{shiftType: {$get: {}}, _:'localOnly'}  {local: true, server: false}
-2. Returnera det som finns lokalt och kolla också med server
-{shiftType: {$get: {}}, _:'localFirst'}  {local: true, server: false}
-3. Returnera inte det som finns lokalt utan bara det som finns på server
-{shiftType: {$get: {}}, _:'serverOnly'}  {local: false, server: true}
 
-4. Returnera det som finns lokalt om t > 10 min och var nöjd (även med tomt resultat)
-{shiftType: {$get: {}}, _:{localOnly: 10*60}}  {local: 10x60, server: false}
-5. Returnera det som finns lokalt om t > 10 min och kolla också med server
-{shiftType: {$get: {}}, _:{localFirst: 10*60}} {local: 10x60, server: true}
 
-6. Returnera det som finns lokalt och kolla också med server. Om saker inte finns lokalt
-och samma fråga har exikverats tidigare ta svaret från den och återanvänd.
-{shiftType: {$get: {}}, _:'localFirstTrustSelf'}  {local: true, server: trustSelf(...)}
-**7. Returnera det som finns lokalt och kolla också med server. Om saker inte finns lokalt
-och samma fråga har exikverats t < 10 min tidigare ta svaret från den och återanvänd.
-{shiftType: {$get: {}}, _:{localFirstTrustSelf: 10*60}}  {local: 10x60, server: trustSelf(...)}
 
-8. Specificera vilka id'n du vill åt (IN-query) och returnera det som finns lokalt
-		om allt finns, var nöjd, om det saknas något ladda de id'n som saknas från server
-{shiftType: {$get: {in: [1,2,3]}}, _:'localFirstOnlyMissing'}   {local: true, server: onlyMissing(...)}
-**9. Specificera vilka id'n du vill åt (IN-query) om t > 10 min och returnera det som finns lokalt
-		om allt finns, var nöjd, om det saknas något ladda de id'n som saknas från server
-{shiftType: {$get: {in: [1,2,3]}}, _:{localFirstOnlyMissing: 10*60}}   {local: 10x60, server: onlyMissing(...)}
-10. Specificera vilka id'n du vill åt... returnera lokalt men skicka också till server
-{shiftType: {$get: {in: [1,2,3]}}, _:'localFirst'}   {local: true, server: true}
-11. Specificera vilka id'n du vill åt om t > 10... returnera lokalt men skicka också till server
-{shiftType: {$get: {in: [1,2,3]}}, _:{localFirst: 10*60}}   {local: true, server: true}
-12. Specificera vilka id'n du vill åt... men hämta bara från server
-{shiftType: {$get: {in: [1,2,3]}}, _:'serverOnly'}  {local: false, server: true}
 
-# Om man skulle vända på cachningen (när man läser)
-1. Returnera det som finns lokalt och var nöjd (även med tomt resultat)
-{shiftType: {$get: {}}, _:'localOnly'}
-// test för om man skulle ange cache här:
-{shiftType: {$get: {}}, _meta:{type: 'localOnly', cache: 10*60, cacheChildren: 0}
-2. Returnera det som finns lokalt och kolla också med server
-{shiftType: {$get: {}}, _:'localFirst'}
-3. Returnera inte det som finns lokalt utan bara det som finns på server
-{shiftType: {$get: {}}, _:'serverOnly'}
 
-4. Returnera det som finns lokalt och kolla också med server. Om saker inte finns lokalt
-och samma fråga har exikverats tidigare ta svaret från den och återanvänd.
-{shiftType: {$get: {}}, _:'localFirstTrustSelf'}
 
-5. Specificera vilka id'n du vill åt (IN-query) och returnera det som finns lokalt
-		om allt finns, var nöjd, om det saknas något ladda de id'n som saknas från server
-{shiftType: {$get: {in: [1,2,3]}}, _:'localFirstOnlyMissing'}
-6. Specificera vilka id'n du vill åt... returnera lokalt men skicka också till server
-{shiftType: {$get: {in: [1,2,3]}}, _:'localFirst'}
-7. Specificera vilka id'n du vill åt... men hämta bara från server
-{shiftType: {$get: {in: [1,2,3]}}, _:'serverOnly'}
 
-Känns enklare och därför som ett bättre api, summa summarum:
-'localOnly'
-'serverOnly'
-'localFirst' 
-{localFirstTrustSelf: 10:60}
-'localFirstMissingOnly'
 
-och för mutationer:
-'localOnly'
-'diffOnly'  // for new objects 'diffOnly' is the same as localOnly
-'dismissDiff'
-'applyDiff'
 
-'syncToServer' ?
 
-skulle kunna ha:
-{type: 'localOnly', includeDiff: true}
 
 
-Man kan ha ett mer reaktivt tänk och förenkla apiet till:
 
-trustSelf: 10*60
-missingOnly
 
-och för mutationer:
-// om inget anges är default "local only"
-'diff'  // for new objects 'diffOnly' is the same as localOnly
-'dismissDiff'
-'applyDiff'
 
-# Saker man vill stödja
-- hålla koll på status för ett server request (läsa & skriva)
-- ändra i en lokal kopia
-- 
 
 
 
-OBS! Kolla på och ta inspiration av denna: https://github.com/heroku/react-refetch
 
 
 
-# namn
-layaway
-trésor
-querybag
-chamberlain
 
 
-# mutationer
-1. Mutera bara lokalt
-{shift__2: {$merge: {start: 123123123}}, _:'localOnly'}
-2. Mutera bara lokalt i en kopia
-{shift__2: {$merge: {start: 123123123}}, _:'trackChanges'}
-3. Återställ kopian (bara lokalt)
-{shift__2: {$do: 'dismissChanges'}}
-4. Använd kopia (bara lokalt)
-{shift__2: {$do: 'applyChanges'}}
-5. Synkronisera lokala mutationer (Använd kopia och sync)
-{shift__2: {}, _:'syncToServer'}
-6. Mutera lokalt och sen på server
-{shift__2: {}, _:'syncToServer'}
-7. Mutera bara på server
 
-# objekt
-diffs =
-	shift:
-		123:
 
 
-1. get shifts for dates for unit
-		bonus: some shifttypes and employees are included
 
-{shift: {$get: {start: '2015-04-01', end: '2015-04-01'}}}
-# unit is handled by statefull backend
 
-2. when user clicks on add new shift, load shifttypes
 
-{shiftType: {$get: {}}}
-# unit is handled by statefull backend
 
-3. ...and employees
 
-{employee: {$get: {}}}
-# unit is handled by statefull backend
 
 
-employee:
-	get: (q) -> api.get '/employee' + toUrl(q)
-	set: (k, v) -> api.put '/employee/' + k, v
-	push: (o) -> api.post '/employee' + o
-	remove: (k) -> api.del '/employee/' + k
 
-shiftType:
-	get: (q) -> api.get '/shifttype' + toUrl(q)
-	set: (k, v) -> api.put '/shifttype/' + k, v
-	push: (o) -> api.post '/shifttype' + o
-	remove: (k) -> api.del '/shifttype/' + k
 
-shift:
-	get: (q) ->
-		schema = {shiftType: {entity: 'shiftType', cache: 0}, worker: 'employee'}
-		api.get '/shift' + toUrl(q), {cache: 10*60}, schema
-	// alternativ om allt var normaliserat (type per default är 'normalize')
-	get: (q) ->
-		schema = {shiftType: {entity: 'shiftType', type: 'getById'}, worker: 'employee'}
-		api.get '/shift' + toUrl(q), {cache: 10*60}, schema
-	set: (k, v) -> api.put '/shift/' + k, v
-	push: (o) -> api.post '/shift' + o
-	remove: (k) -> api.del '/shift/' + k
 
 
 
-transaction:
-	get: (q) -> api.get '/connection' + toUrl(q)
+# popcorn test
+week:
+- soft start, en tom vecka, en helt full vecka, mål 1 och mål 7 och current 7 och current över mål
+- 2 användare
+- 6 användare
+- 12 användare (eller maxantal som det finns färger)
 
-receipt:
-	get: (q) -> api.get '/receipt' + toUrl(q)
 
-connection:
-	set: (k, v) -> api.put "/connection/#{v}", v
-	get: (q) -> api.get '/connection' + toUrl(q)
+- Kolla på projektvyn "Project Progress" i Harvest. Det konceptet kanske skulle funka för någon sorts historik-vy, speciellt bra på desktop
 
-{workouts__2: {remove: true},}
+- Den gamla versionen finns på commits from tom	Aug 20, 2017
+- Här finns den väldigt gamla versionen: /Users/victor/Dropbox/_backups/workout-buddies/wobu2
 
-workouts/2, remove, sync
+# Namnförslag
 
-{workouts__2: {$remove: true}, _meta: "local'}
-{workouts: {$push: {type: 1, text: 'good sweat'}}, _meta: 'local'}
-{all: {$do: 'sync'}}
+beachup
 
-## Local changes (edit form)
-{workouts__3: {$merge: {text: '...'}}, _meta: 'local_diff'} # keep changes in diff
-{workouts__3: {$merge: {text: '...'}}, _meta: 'local_dirty'} # changes seen everywhere but dirty flag
-{workouts__3: {$do: 'sync'}} # save
-{workouts__3: {$do: 'revert'}} # cancel
+# Aktiviteter
+FITNESS
+- Löpning
+- Gym
+- Cykel
+- Gång
+- Gruppträning
+- Blandat (vart för komplicerat med svg-filen, avvaktar)
+- Simning
+- Dans
 
+BOLLSPORTER
+- Basket
+- Bandy
+- Vollyboll
+- Fotboll
+---
+- Rugby
+- Cricket
 
-{workouts__3: {$merge: {completed: true}}, _meta: 'optimistic'} # change locally and sync with server
-{workouts__3: {$merge: {completed: true}}, _meta: 'pessemistic'} # change locally and lock cache until server confirm
+RACKETSPORTER
+- Tennis
+- Badminton
+- Pingpong
+- Squash
 
-{workouts__3: {$merge: {completed: true}}, _:{local: 'update'} } # change locally and lock cache until server confirm
+VINTERSPORTER
+- Slalom
+- Längd
+- Snowboard
+- Hockey
+- Skridskor
 
-## in views we separate statuses for reads and mutations
+OUTDOORS
+- Klättring
+- Vandring
 
-props:
-	workouts: arrayOfShape shape
-		# status field of a specific object tells if create, update, delete is in progress or their status
-		_status: object
-		text: string
-	# if we are interested in the status for reading workouts in general, we have to subscribe to
-	# a separate thing
-	workouts_status: object
+ÖVRIGT
+- Yoga
+- Kampsport
+- Golf
+- Ridning
+- Friidrott
+---
+- Skateboard
 
-
-
-
-
-
-
-
-
-
-
-
-
-SELECT A.FrDt AS FrDt, A.OrdNo, A.R2, A.ProdNo, A.CustNo, '' as Nm_ASCustName, A.Descr, A.ToTm, A.FrTm, A.AgrActNo, A.AgrNo, A.R1, 0 as Seller, A.TransGr as OB, A.Txt1, A.Txt2, A.NoInvoAb/60 as NoInvoAb, '' as Notes, O.Inf, '' as CreatedOnIphone, A.AgrNo AS SortId, 1 as Transferred, O.OrdTp as Ord_OrdTp, A.Fin as Agr_Fin, O.Gr3 as Ord_Gr3, A.Gr5 as Phase
-FROM VISMA_Agr A 
-LEFT JOIN VISMA_Ord O On A.OrdNo = O.OrdNo
-WHERE A.AgrActNo=@AgrActNo and A.CustNo = 0 and A.FrDt >= @from and A.FrDt <= @to
-
-
-{agreement:
-  $get: {}
-  $where: {}}
-
-query 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-**Sweet and delicious "data"-queries in javascript**
-
-If you have simple querying needs and want to have a unified way of querying your data independent of what data layer you choose, popsiql might be a tasty treat for you.
-
-The idea is not to try to support complex queries, but instead the most simple ones that ofter are enough for small applications.
-
-You should be able to write an adapter that takes a popsiql-query as input and produce whatever output you need in a quite simple way. There are existing adapters for "url", MS SQL, mongo and firebase which are all between 40-80 lines of code long, have a look at them!
-
-Your client side code:
-
-```
-onClick: ->
-	query = {where: {name: {like: 'jo%'}}}
-	urlQuery = popsiql.toUrl(query) # "name=like(jo%)"
-	xhr.get('/api/employee?' + urlQuery)
-```
-
-Your server side code:
-
-```
-app.get '/api/employee', (req, res) ->
-	query = popsiql.fromUrl(req.query) # {where: {name: {like: 'jo%'}}}
-
-	# if you use SQL
-	sqlQuery = popsiql.toSQL(query) # "SELECT ... WHERE name LIKE 'jo%'"
-	db.execute(sqlQuery)
-
-	# if you use mongo
-	{find} = popsiql.toMongo(query) # {find: {name: {$regex: 'jo.*'}}}
-	db.collection('...').find(find)
-```
-
-Here are some **example queries for reading**:
-
-
-
-Simple query
-```
-{users: {age: {eq: 30}}}
-toUrl         # users?age=eq(30)
-toMSSQL       # select * from users where age = 30
-toMongo       # {users: {find: {age: {$eq: 30}}}}
-runMongo      # cols['users'].find({age: {$eq: 30}})
-toFirebase    # {users: {orderByChild: 'age', equalTo: 30}}
-runFirebase   # ref.child('users').orderByChild('age').equalTo(30)
-```
-
-Like-query
-```
-{users: {name: {like: 'an%'}}}
-toUrl         # users?name=like(an%)
-toMSSQL       # select * from users where name like 'an%'
-toMongo       # {users: {find: {name: {$regex: 'jo.*'}}}}
-runMongo      # cols['users'].find({name: {$regex: 'jo.*'}})
-toFirebase    # {users: {orderByChild: 'name', startAt: 'an', endAt: 'an\uf8ff'}}
-runFirebase   # ref.child('users').orderByChild('name').startAt('an').endAt('an\uf8ff')
-```
-
-In-query
-```
-{users: {id: {in: [1, 2, 3]}}}
-toUrl         # users?id=in(1,2,3)
-toMSSQL       # select * from users where id in (1,2,3)
-toMongo       # {users: {find: {_id: {$in: [1,2,3]}}}}
-runMongo      # cols['users'].find({_id: {$in: [1,2,3]}})
-toFirebase    # {users: [1, 2, 3]}
-runFirebase   # [ref.child('users/1'), ref.child('users/2'), ref.child('users/3')]
-```
-
-Multiple predicates
-```
-{users: {age: {gt: 25, lt: 30}}}
-toUrl         # users?age=gt(25)&age=lt(30)
-toMSSQL       # select * from users where age > 25 and age < 30
-toMongo       # {users: {find: {age: {$gt: 25, $lt: 30}}}}
-runMongo      # cols['users'].find({age: {$gt: 25, $lt: 30}})
-toFirebase    # Error 'Firebase adapter only supports one predicate in where for the moment'
-runFirebase   # Error 'Firebase adapter only supports one predicate in where for the moment'
-```
-
-Multiple properties
-```
-{users: {age: {lt: 30}, sex: {eq: 'female'}}}
-toUrl         # users?age=lt(30)&sex=eq(female)
-toMSSQL       # select * from users where age < 30 and sex = 'female'
-toMongo       # {users: {find: {age: {$lt: 30}, sex: {$eq: 'female'}}}}
-runMongo      # cols['users'].find({age: {$lt: 30}, sex: {$eq: 'female'}})
-toFirebase    # Error 'Firebase only supports one key in where clause'
-runFirebase   # Error 'Firebase only supports one key in where clause'
-```
-
-Order by
-```
-{users: {age: {gt: 25}}, orderBy: 'name'}
-toUrl         # users?age=gt(25)&orderBy=(name)
-toMSSQL       # select * from users where age > 25 order by 'name'
-toMongo       # {users: {find: {age: {$gt: 25}}, sort: {name: 1}}}
-runMongo      # cols['users'].find({age: {$gt: 25}}).sort({name: 1})
-toFirebase    # Error 'Firebase does not support order by'
-runFirebase   # Error 'Firebase does not support order by'
-```
-
-
-Here are some **example queries for mutation**:
-```
-# Simple set (in "SQL-lingo" and "REST-lingo" probably called an "update")
-['users.1', 'set', {name: 'Elin', age: 29}]
-{users: {set: [1, {name: 'Elin', age: 29}]}}
-{users__1: {$set: {name: 'Elin', age: 29}}}
-{set: {users: [1, {name: 'Elin', age: 29}]}}
-{set: {users__1: {name: 'Elin', age: 29}}}
-{set: {users: {name: 'Elin', age: 29}, where: 1}}
-{users__1: {$set: {name: 'Elin', age: 29}}}
-{users__1: {$remove: {name: 'Elin', age: 29}}}
-toUrl				# not yet implemented
-toMSSQL			# Error 'MSSQL does not support set, try update instead'
-toMongo			# {users: {query: {_id: 1}, update: {name: 'Elin', age: 29}, options: {upsert: true}}}
-runMongo		# cols['users'].update({_id: 1}, {name: 'Elin', age: 29}, {upsert: true})
-toFirebase	# {users: {set: [1, {name: 'Elin', age: 29}]}}
-toFirebase	# {set: {user: [1, {name: 'Elin', age: 29}]}}
-runFirebase # ref.child('1').set({name: 'Elin', age: 29})
-toRamda			# R.over(R.lensPath(['users']), R.merge({1: {name: 'Elin', age: 29}}))
-runRamda		# R.over(R.lensPath(['users']), R.merge({1: {name: 'Elin', age: 29}}), ref)
-toSuperGlue # [['users', 1], {name: 'Elin', age: 29}]
-runSuperGlue# ref.set ['users', 1], {name: 'Elin', age: 29}
-
-# Simple update (in "REST-lingo" probably called a "patch", in "SQL-lingo probably called "selective update")
-# TODO: borde inte Firebase bara supporta en av set och update?
-# ...nu beter den sig lika på bägge dessa, lite svårt att förstå.
-# NEJ NEJ NEJ, firebase set och update är olika! set är update och update är patch
-# ...maybe rename these to update and patch instead of set and update?
-['users.1', 'update', {name: 'Elin', age: 29}]
-{users: {update: [1, {name: 'Elin', age: 29}]}}
-{users: {update: [1, {name: 'Elin', age: 29}]}}
-{update: {users: {name: 'Elin', age: 29}}, where: 1}
-{update: {users: [1, {name: 'Elin', age: 29}]}}
-{users__1: {$merge: {name: 'Elin', age: 29}}}
-{$at: ['users', 1], {$merge: {name: 'Elin', age: 29}}}  ? 
-toUrl				# not yet implemented
-toMSSQL			# update users set name='Elin',age=29 where id = 1
-toMongo			# {users: {query: {_id: 1}, update: {$set: {name: 'Elin', age: 29}}}}
-runMongo		# cols['users'].update({_id: 1}, {$set: {name: 'Elin', age: 29}})
-toFirebase	# {users: {update: [1, {name: 'Elin', age: 29}]}}
-runFirebase # ref.child('user/1').update({name: 'Elin', age: 29})
-```
-
-# Simple insert/create
-['users', 'create', {name: 'Elin', age: 29}]
-{users: {create: {name: 'Elin', age: 29}}}
-{users: {$push: {name: 'Elin', age: 29}}}
-toUrl				# not yet implemented
-toMSSQL			# insert into users (name,age) values ('Elin',29)
-toMongo			# {users: {insert: {name: 'Elin', age: 29}}}
-runMongo		# cols['users'].insert({name: 'Elin', age: 29})
-toFirebase	# {users: {create: {name: 'Elin', age: 29}}}
-runFirebase # ref.child('users').push().set({name: 'Elin', age: 29})
-
-
-
-
+VATTENSPORTER
+- Vindsurf
+- Segling
+- Padding
+- Kitesurf
+---
+- Dykning
+- Vågsurf
+- Rodd
+- Vattenskidor

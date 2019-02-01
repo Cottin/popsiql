@@ -1,146 +1,306 @@
-{add, all, any, both, call, compose, contains, dec, drop, flatten, fromPairs, gt, gte, head, identity, insert, into, isEmpty, isNil, join, keys, last, lt, lte, map, match, max, min, partial, path, remove, repeat, replace, set, sort, sum, test, toLower, toPairs, trim, type, union, update, values, view, where} = R = require 'ramda' #auto_require:ramda
-{cc, doto, fmapObjIndexed} = RE = require 'ramda-extras' #auto_require:ramda-extras
-co = compose
+{append, apply, concat, contains, curry, flatten, isEmpty, join, map, path, replace, test, toLower, toPairs, trim, type, union, unnest, values, where} = R = require 'ramda' # auto_require: ramda
+{change, cc, doto, $, fmap, fmapObjIndexed, $$, toPair, mapO} = RE = require 'ramda-extras' # auto_require: ramda-extras
+[ːID_Int_Seq, ːBool, ːStr, ːDate, ːDateTime, ːInt, ːFloat] = ['ID_Int_Seq', 'Bool', 'Str', 'Date', 'DateTime', 'Int', 'Float'] #auto_sugar
 
-console.log {fmapObjIndexed}
+util = require 'util'
+S = (o) -> util.inspect o, {depth: 9}
+{_expandQuery, _expandWrite, _isSimple} = require './query'
 
-# a -> s   Converts a value to its representation in an SQL query
-# eg. 't' -> '\'t\'',    [1,2,3] -> '[1,2,3]'
-val = (v) ->
-	if type(v) == 'Array'
-		s = cc replace(/"/g, "'"), JSON.stringify, v
-		return cc replace(/^\[/, '('), replace(/\]$/, ')'), s
-	else cc replace(/"/g, "'"), JSON.stringify, v
+class PopsiqlSQLError extends Error
+	constructor: (msg) ->
+		super msg
+		@name = 'PopsiqlSQLError'
+		Error.captureStackTrace this, PopsiqlSQLError
 
+PSE = PopsiqlSQLError
 
-# https://www.drupal.org/docs/develop/coding-standards/list-of-sql-reserved-words
-reservedWords = ['absolute', 'action', 'add', 'all', 'allocate', 'alter', 'and', 'any', 'are', 'as', 'asc', 'assertion', 'at', 'authorization', 'avg', 'begin', 'between', 'bit', 'bit_length', 'both', 'by', 'call', 'cascade', 'cascaded', 'case', 'cast', 'catalog', 'char', 'char_length', 'character', 'character_length', 'check', 'close', 'coalesce', 'collate', 'collation', 'column', 'commit', 'condition', 'connect', 'connection', 'constraint', 'constraints', 'contains', 'continue', 'convert', 'corresponding', 'count', 'create', 'cross', 'current', 'current_date', 'current_path', 'current_time', 'current_timestamp', 'current_user', 'cursor', 'date', 'day', 'deallocate', 'dec', 'decimal', 'declare', 'default', 'deferrable', 'deferred', 'delete', 'desc', 'describe', 'descriptor', 'deterministic', 'diagnostics', 'disconnect', 'distinct', 'do', 'domain', 'double', 'drop', 'else', 'elseif', 'end', 'escape', 'except', 'exception', 'exec', 'execute', 'exists', 'exit', 'external', 'extract', 'false', 'fetch', 'first', 'float', 'for', 'foreign', 'found', 'from', 'full', 'function', 'get', 'global', 'go', 'goto', 'grant', 'group', 'handler', 'having', 'hour', 'identity', 'if', 'immediate', 'in', 'indicator', 'initially', 'inner', 'inout', 'input', 'insensitive', 'insert', 'int', 'integer', 'intersect', 'interval', 'into', 'is', 'isolation', 'join', 'key', 'language', 'last', 'leading', 'leave', 'left', 'level', 'like', 'local', 'loop', 'lower', 'match', 'max', 'min', 'minute', 'module', 'month', 'names', 'national', 'natural', 'nchar', 'next', 'no', 'not', 'null', 'nullif', 'numeric', 'octet_length', 'of', 'on', 'only', 'open', 'option', 'or', 'order', 'out', 'outer', 'output', 'overlaps', 'pad', 'parameter', 'partial', 'path', 'position', 'precision', 'prepare', 'preserve', 'primary', 'prior', 'privileges', 'procedure', 'public', 'read', 'real', 'references', 'relative', 'repeat', 'resignal', 'restrict', 'return', 'returns', 'revoke', 'right', 'rollback', 'routine', 'rows', 'schema', 'scroll', 'second', 'section', 'select', 'session', 'session_user', 'set', 'signal', 'size', 'smallint', 'some', 'space', 'specific', 'sql', 'sqlcode', 'sqlerror', 'sqlexception', 'sqlstate', 'sqlwarning', 'substring', 'sum', 'system_user', 'table', 'temporary', 'then', 'time', 'timestamp', 'timezone_hour', 'timezone_minute', 'to', 'trailing', 'transaction', 'translate', 'translation', 'trim', 'true', 'undo', 'union', 'unique', 'unknown', 'until', 'update', 'upper', 'usage', 'user', 'using', 'value', 'values', 'varchar', 'varying', 'view', 'when', 'whenever', 'where', 'while', 'with', 'work', 'write', 'year', 'zone']
-# s -> s   Quotes a string if it feels needed
-q = (s) ->
-	isReserved = contains toLower(s), reservedWords
-	hasUpper = test /[A-Z]/, s # in postgres camelCase needs quotes
-	if isReserved || hasUpper then '"' + s + '"'
-	else s
+###### HELPERS ################################################################
+esc = (s) -> "\"#{s}\""
+unEsc = (s) -> replace /\"/g, '', s
+val = (x) -> if isNaN x then "'#{x}'" else x
+ent = (e, model) -> esc model.$config.entityToTable e
 
-# [k, v] -> s   Converts a key-value pair to its representation in SQL
-keyVal = ([k, v]) -> "#{q(k)} = #{val(v)}"
+addAlias = curry (aliases, node) ->
+	if node.topLevel && !node.rels then return node
+	alias = toLower node.entity[0]
+	alias += node.entity[alias.length] while contains alias, aliases
+	aliases.push alias
 
-# o -> s   Converts an object to its representation in an SQL query
-# eg. {a: 1, b: 't'} -> 'a = 1, b = \'t\''
-objToCols = co join(', '), map(keyVal), toPairs
+	if !node.rels then {...node, alias}
+	else {...node, alias, rels: map addAlias(aliases), node.rels}
 
-# s -> [s, a] -> s   Builds a predicate string
-# eg. 'name' -> (['eq', 'elin']) -> 'name = \'elin\''
-toPred = (k0) -> ([k, v]) ->
-	switch k
-		when 'eq' then "#{q(k0)} = #{val(v)}"
-		when 'neq' then "#{q(k0)} <> #{val(v)}"
-		when 'gt' then "#{q(k0)} > #{val(v)}"
-		when 'gte' then "#{q(k0)} >= #{val(v)}"
-		when 'lt' then "#{q(k0)} < #{val(v)}"
-		when 'lte' then "#{q(k0)} <= #{val(v)}"
-		when 'in' then "#{q(k0)} in #{val(v)}"
-		when 'nin' then "#{q(k0)} not in #{val(v)}"
-		when 'like' then "#{q(k0)} like #{val(v)}"
-
-# [s, a] -> [s]   Builds an array of predicate strings for the property k
-toPreds = ([k, v]) ->
-	if R.is Object, v
-		cc map(toPred(k)), toPairs, v
-	else
-		# if no predicate given, we assume an implicit equals
-		keyVal [k, v]
-
-# o -> s   Builds the where-part of the SQL query from the query object
-# eg. {where: {a: {gt: 1, lt: 5}}} -> ' where a > 1 and a < 5'
-_where = (query) ->
-	{where, id} = query
-	if id
-		if type(id) == 'Array' then return " where id in #{val(id)}"
-		else return " where id = #{val(id)}"
-
-	if !where then return ''
-	return ' where ' + cc join(' and '), flatten, map(toPreds), toPairs, where
-
-_sort = (query) ->
-	{sort} = query
-	if !sort then return ''
-
-	if type(sort) == 'Array'
-		sortToStr = (s) ->
-			k = cc head, keys, s
-			return k + ' ' + if test /desc/, s[k] then 'desc' else 'asc'
-		return " order by " + cc join(', '), map(sortToStr), sort
-	else return " order by #{sort}"
-
-_link = (query) ->
-	{link, CONFIG} = query
-	if !link then return ''
-	# if !CONFIG
-	# 	throw new Error '\'link\' in query but no CONFIG' + JSON.stringify(query)
-
-	entity = query.many || query.one
-
-	_link =
-		if type(link) == 'Array'
-			doto link, map((x) -> [x, {}]), fromPairs
-		else link
-
-	res = fmapObjIndexed _link, (v, k) ->
-		fields = if isEmpty v then {} else 'todo'
-		join =
-			switch CONFIG[entity].links[k]
-				when 'hasOne' then " join #{k} on "
+addAliases = (queries) ->
+	fmap queries, (q) -> addAlias [], q
 
 
-	console.log res
+###### FROM ###################################################################
+makeFrom = ({entity, rels}, model) ->
+	"#{ent entity, model}#{rels && " as #{toLower entity[0]}" || ''}"
 
 
-# o -> s   Builds the SELECT query from the query object
-_get = (query) ->
-	{fields} = query
-	table = toLower(query.many || query.one)
-	{fields: linkFields, join: linkJoin} = _link query
-	cols =
-		if fields then cc join(', '), map(q), fields
-		else '*'
-	return "select #{cols} from #{q(table)}" +
-	_where(query) + _sort(query) + __link
+###### FIELDS #################################################################
+makeFieldsForNode = ({allFields, allFlag, alias, rels}) ->
+	# if allFlag then return []
+	fs = fmap allFields, (s) -> alias && "#{alias}.#{esc(s)}" || esc(s)
+	concat fs, doto rels || {}, map(makeFieldsForNode), values, flatten
 
-# o -> s   Builds the UPDATE query from the query object
-_set = (query) ->
-	table = cc head, keys, query.set
-	cols = objToCols query.set[table]
-	return "update #{q(table)} set #{cols}" + _where(query)
+# makeFields = (query) -> join(', ', makeFieldsForNode(query)) || '*'
 
-# o -> s   Builds the INSERT query from the query object
-_create = (query) ->
-	table = toLower query.create
-	cols = cc join(','), map(q), keys, query.data
-	vals = cc join(','), map(val), values, query.data
-	return "insert into #{q(table)} (#{cols}) values (#{vals})"
 
-# o -> s   Builds the UPDATE query from the query object
-_update = (query) ->
-	if isNil query.id then throw new Error 'update query missing id'
-	table = toLower query.update
-	kvs = cc join(', '), map(keyVal), toPairs, query.data
-	return "update #{q(table)} set #{kvs} where id = #{query.id}"
+###### WHERE ##################################################################
+ops = {eq: '=', ne: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=', in: 'IN',
+like: 'LIKE', ilike: 'ILIKE', notlike: 'NOT LIKE', notilike: 'NOT ILIKE'}
 
-# o -> s   Builds the DELETE query from the query object
-_remove = (query) ->
-	if isNil query.id then throw new Error 'remove query missing id'
-	table = toLower query.remove
-	return "delete from #{q(table)} where id = #{query.id}"
+toOpAndVal = (op, v) -> op == 'in' && "IN (#{map(val, v)})" || "#{ops[op]} #{val(v)}"
 
-# o -> s   Builds a DELETE query without any where clause
-_removeAll = (query) -> "delete from #{q(query.removeAll)}"
+toPred = curry (alias, k, op, v) -> "#{alias && alias + '.' || ''}#{esc(k)} #{toOpAndVal(op, v)}"
 
-# o -> s   Converts a popsiql query to a SQL query
-exports.toSql = toSql = (query) ->
-	if query.many || query.one then return _get query
-	else if query.create then return _create query
-	else if query.update then return _update query
-	else if query.remove then return _remove query
-	else if query.removeAll then return _removeAll query
-	# else if query.push then return _push query
+toPreds = curry (alias, k, v) -> $ v, toPairs, map(apply(toPred(alias, k)))
+
+makePreds = ({where, alias}) ->
+	$ where, toPairs, map(apply(toPreds(alias))), flatten, join ' AND '
+
+
+###### JOIN ###################################################################
+makeJoinForNode = curry (model, query) ->
+	{entity, alias, rels, where} = query
+	if !rels then return []
+
+	joins = fmapObjIndexed rels, (rel, k) ->
+		[on1, on2] = model[entity].$rels[k].on
+		"""left outer join #{ent rel.entity, model} as #{rel.alias} \
+		on #{alias}.#{esc(on1)} = #{rel.alias}.#{esc(on2)}\
+		#{if isEmpty rel.where then '' else ' AND ' + makePreds rel}"""
+
+	concat values(joins), $(rels, map(makeJoinForNode(model)), values, flatten)
+
+makeJoin = (query, model, newLine) -> join newLine, makeJoinForNode(model, query)
+
+
+###### CREATE TABLE ###########################################################
+coldef = (k, v) -> "#{esc k} #{v}"
+
+makeColumns = (fields) ->
+	res = doto fields, toPairs, map ([field, dataType]) ->
+		if field == '$rels' || field == '$subs'
+			return []
+
+		if type(dataType) == 'Object'
+			[k, v] = toPair dataType
+			if k == 'oneToOne' then return [] # not yet implemented
+			else if k == 'oneToMany' then return [] # not yet implemented
+			else if k == 'manyToOne' then return [] # not yet implemented
+			throw new PSE "Object type for key '#{k}' not yet implemented"
+
+		notNull = if test /〳$/, dataType then '' else ' NOT NULL'
+		dataTypeʹ = if test /〳$/, dataType then replace /〳$/, '', dataType else dataType
+		switch dataTypeʹ
+			when ːID_Int_Seq then coldef(field, 'serial') + ", PRIMARY KEY (\"#{field}\")"
+			when ːStr then coldef field, 'text' + notNull
+			when ːInt then coldef field, 'integer' + notNull
+			when ːFloat then coldef field, 'float' + notNull
+			when ːBool then coldef field, 'boolean' + notNull
+			when ːDate then coldef field, 'date' + notNull
+			when ːDateTime then coldef field, 'timestamp with time zone' + notNull
+			else throw new PSE "unsupported data type '#{dataType}'"
+
+	return flatten res
+
+makeTables = (model) ->
+	tables = []
+	for entity, fields of model
+		if entity == '$config' then continue
+
+		tables.push """CREATE TABLE "public".#{ent entity, model} (
+			#{join(',\n\t', makeColumns(fields))}
+		);
+		"""
+
+	return tables
+
+
+###### BUILD RESULT ###########################################################
+buildColMap = ({entity, allFields, rels}) ->
+	allFieldsʹ = fmap allFields, (f) -> [entity, f]
+	if !rels then allFieldsʹ
+	else concat allFieldsʹ, $ rels, values, map(buildColMap), unnest
+
+
+###### SUB QUERIES ###########################################################
+extractSubQueries = (query, model) ->
+	res = flatten subsForNode model, [], query
+	console.log '####################################################'
+	console.log S res
+
+subsForNode = curry (model, path, node) ->
+	subs = []
+	if node.subs
+		test1 = $$ node.subs, values, mapO (v, key) -> {...v, key, path}
+		console.log test1
+		subs.push ...test1
+		console.log subs
+
+	if node.rels
+		relSubs = $ node.rels, mapO((v, k) -> subsForNode(model, append(k, path), v)), values
+		return subs.concat relSubs
+
+	return subs
+
+buildData = (query, rows, cache = {}) ->
+	colMap = buildColMap query
+
+
+	for row in rows
+		obj = {}
+		[lastEntity, _] = colMap[0]
+		for col, i in row
+			[entity, field] = colMap[i]
+			if col == undefined then continue
+			if entity != lastEntity
+				cache = change {[lastEntity]: {[obj.id]: obj}}, cache
+				obj = {}
+			obj[field] = col
+			lastEntity = entity
+		cache = change {[lastEntity]: {[obj.id]: obj}}, cache
+
+	return cache
+	# fieldsʹ = map unEsc, fields
+	# return fmap rows, (r) ->
+	# 	console.log 0, fieldsʹ
+	# 	console.log 0, r
+	# 	zipObj fieldsʹ, r
+
+handleQuery = (q, model, exec, cache, {newLine}) ->
+	fields = makeFieldsForNode q
+
+	sql = cc replace(/  /, ' '), trim, join(newLine), [
+		"SELECT #{q.allFlag && '*' || join(', ', fields)}"
+		"FROM #{makeFrom q, model}"
+		makeJoin q, model, newLine
+		if isEmpty q.where then '' else 'WHERE ' + makePreds q
+	]
+	sqlRows = exec sql
+	data = buildData q, sqlRows, cache
+	# dataʹ = await handleSubQueries q, model, data, exec
+	return data
+
+
+handleSubQueries = (query, model, data, exec) ->
+	return _expandSubQuery query, model, data, (q, input) ->
+		sql = 1
+			# "SELECT #{makeFields q}"
+			# "FROM #{makeFrom q, model}"
+			# makeJoin q, model, newLine
+			# if isEmpty q.where then '' else 'WHERE ' + makePreds q
+		sqlRows = exec sql
+		dataʹ = buildResult sqlRows, data
+		return handleSubQueries q, model, dataʹ, exec
+
+
+
+
+###### MAIN ###################################################################
+module.exports =
+	write: (query, model, options = {}) ->
+		{query: queryʹ} = _expandWrite query, model
+
+		"""INSERT INTO #{ent queryʹ.entity, model} \
+		(#{doto(queryʹ.fields, map(esc), join(', '))}) VALUES \
+		(#{doto(queryʹ.values, values, map(val), join(', '))}) RETURNING \
+		#{doto(queryʹ.fields, union(['id']), map(esc), join(', '))};"""
+
+	update: (query, model, options = {}) ->
+	remove: (query, model, options = {}) ->
+	read: (rawQuery, model, exec, options = {}) ->
+		queries = _expandQuery rawQuery, model
+		queriesʹ = addAliases queries
+		newLine = if options.newLine then '\n' else ' '
+
+		cache = {}
+		for k,q of queriesʹ
+			cache = await handleQuery q, model, exec, cache, {newLine}
+		# res = $$ queriesʹ, map (q) ->
+		# 	data = await handleQuery q, model, exec, {newLine}
+		# 	return data
+
+		# res = fmap queriesʹ, (q) ->
+		# 	sql = cc replace(/  /, ' '), trim, join(newLine), [
+		# 		"SELECT #{makeFields q}"
+		# 		"FROM #{makeFrom q, model}"
+		# 		makeJoin q, model, newLine
+		# 		if isEmpty q.where then '' else 'WHERE ' + makePreds q
+		# 	]
+		# 	sqlRows = exec sql
+		# 	console.log '--------------'
+		# 	console.log util.inspect q, {depth: 8}
+		# 	console.log '--------------'
+		# 	console.log sqlRes
+		# 	console.log '--------------'
+		# 	subs = extractSubQueries q, model
+
+		# 	data = buildData sqlRows
+		# 	subData = await handleSubQueries q, model, data, exec
+
+		# 	return sqlRes
+
+
+		# console.log 3, res, _isSimple rawQuery
+		# res2 = await PromiseProps res
+		# console.log 6, res2
+		# console.log 7, Promise.prop
+
+		return cache
+		# if _isSimple rawQuery then res2.query else res2
+
+	buildResult: (query, rows, model) ->
+		queries = _expandQuery query, model
+		cache = {}
+		for k, queryʹ of queries
+			colMap = buildColMap queryʹ
+
+			for row in rows
+				obj = {}
+				[lastEntity, _] = colMap[0]
+				for col, i in row
+					[entity, field] = colMap[i]
+					if entity != lastEntity
+						cache = change {[lastEntity]: {[obj.id]: obj}}, cache
+						obj = {}
+					obj[field] = col
+					lastEntity = entity
+				cache = change {[lastEntity]: {[obj.id]: obj}}, cache
+
+		return cache
+
+
+
+
+
+
+
+	createTables: (model, options = {}) ->
+		tblsToCreate = makeTables model
+		return join '\n', tblsToCreate
+
+	# exportData: (model, options = {}) ->
+	# importData: (model, data, options = {}) ->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
