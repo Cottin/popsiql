@@ -1,6 +1,6 @@
 assert = require('assert')
 {toSql} = require './sql'
-{add, all, flip, gt, gte, insert, into, lt, lte, remove, set, sort, test, update, values, where} = require 'ramda' #auto_require:ramda
+{add, all, flip, insert, into, join, remove, set, sort, test, update, values, where} = require 'ramda' #auto_require:ramda
 
 eq = flip assert.strictEqual
 deepEq = flip assert.deepStrictEqual
@@ -41,6 +41,32 @@ describe 'sql', ->
         it 'desc', ->
           res = toSql {many: 'o', sort: [{n: 'desc'}, {k: 'asc'}]}
           eq 'select * from o order by n desc, k asc', res
+
+    describe 'relations', ->
+      CONFIG =
+        A:
+          id: 'int'
+          a1: 'str'
+          a2: 'int'
+          links:
+            B: 'hasOne'
+        B:
+          id: 'int'
+          b1: 'bool'
+          b2: 'int'
+          links: 
+            A: 'belongsTo'
+
+
+      describe 'hasOne', ->
+        it.only 'simple', ->
+          res = toSql {CONFIG, many: 'a', link: ['B']}
+          eq 'select * from a inner join b on a.id = b.aId', res
+
+        # it 'include without config', ->
+        #   throws /\'include\' in query but no CONFIG/, ->
+        #     toSql {many: 'a', include: ['B']}
+
 
     describe 'create', ->
       it 'simple', ->

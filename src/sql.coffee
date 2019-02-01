@@ -1,6 +1,8 @@
-{add, all, any, both, call, compose, contains, dec, drop, equals, flatten, gt, gte, head, identity, insert, into, isNil, join, keys, last, length, lt, lte, map, match, max, min, pair, partial, path, remove, repeat, replace, set, sort, sum, test, toLower, toPairs, trim, type, union, update, values, view, where, without} = R = require 'ramda' #auto_require:ramda
-{cc} = require 'ramda-extras'
+{add, all, any, both, call, compose, contains, dec, drop, flatten, fromPairs, gt, gte, head, identity, insert, into, isEmpty, isNil, join, keys, last, lt, lte, map, match, max, min, partial, path, remove, repeat, replace, set, sort, sum, test, toLower, toPairs, trim, type, union, update, values, view, where} = R = require 'ramda' #auto_require:ramda
+{cc, doto, fmapObjIndexed} = RE = require 'ramda-extras' #auto_require:ramda-extras
 co = compose
+
+console.log {fmapObjIndexed}
 
 # a -> s   Converts a value to its representation in an SQL query
 # eg. 't' -> '\'t\'',    [1,2,3] -> '[1,2,3]'
@@ -71,15 +73,39 @@ _sort = (query) ->
 		return " order by " + cc join(', '), map(sortToStr), sort
 	else return " order by #{sort}"
 
+_link = (query) ->
+	{link, CONFIG} = query
+	if !link then return ''
+	# if !CONFIG
+	# 	throw new Error '\'link\' in query but no CONFIG' + JSON.stringify(query)
+
+	entity = query.many || query.one
+
+	_link =
+		if type(link) == 'Array'
+			doto link, map((x) -> [x, {}]), fromPairs
+		else link
+
+	res = fmapObjIndexed _link, (v, k) ->
+		fields = if isEmpty v then {} else 'todo'
+		join =
+			switch CONFIG[entity].links[k]
+				when 'hasOne' then " join #{k} on "
+
+
+	console.log res
+
 
 # o -> s   Builds the SELECT query from the query object
 _get = (query) ->
 	{fields} = query
 	table = toLower(query.many || query.one)
+	{fields: linkFields, join: linkJoin} = _link query
 	cols =
 		if fields then cc join(', '), map(q), fields
 		else '*'
-	return "select #{cols} from #{q(table)}" + _where(query) + _sort(query)
+	return "select #{cols} from #{q(table)}" +
+	_where(query) + _sort(query) + __link
 
 # o -> s   Builds the UPDATE query from the query object
 _set = (query) ->

@@ -9,7 +9,7 @@ throws = (re, f) -> assert.throws f, re
 MOCK =
   user: [{a: 1, b: 1}, {a: 2, b: 2}, {a: 3, b: 3}]
   customer: [{a: 'victor'}, {a: 'victoria'}, {a: 'elin'}]
-  project: {1: {id: 1, a: 'a1'}, 2: {id: 2, a: 'a2'}}
+  project: {'1': {id: 1, a: 'a1'}, '2': {id: 2, a: 'a2'}, '11': {id: 11, a: 'a11'}}
   o: {1: {id: 1, n: 'b'}, 2: {id: 2, n: 'a'}, 3: {id: 3, n: 'c'}, 4: {id: 4, n: 'b'}}
 
 
@@ -101,7 +101,6 @@ describe 'ramda', ->
                 a: 'a4'
 
           f = toRamda {many: 'o', sort: [{a: 'desc'}]}
-          console.log f(mock2)
         it 'deXXsc', ->
           f = toRamda {many: 'o', sort: [{n: 'deXXsc'}]}
           throws /sort direction must be asc or desc/, -> f(MOCK)

@@ -1,3 +1,117 @@
+Cases:
+
+oneToMany
+oneToOne
+manyToMany
+
+
+models
+	Person:
+		fields: ['id', 'date', 'name']
+		associations:
+			Company: {oneToMany: 'Person.companyId=Company.id'}
+	Company:
+		fields:
+			id: 'int'
+			date: 'date'
+
+models
+	Person:
+		fields: 'id, date, name'
+		associations:
+			Company: {oneToMany: 'Person.companyId=Company.id'}
+	Company:
+		fields:
+			id: 'int'
+			date: 'date'
+
+
+query
+	Person:
+		include: 'Company,Group'
+		where: {Company__name: {gt: 2}}
+		order: 'Company.name, Company.id'
+
+	Persons:
+		include: 'Company,Group'
+		where: {Company__name: {gt: 2}}
+		order: 'Company.name, Company.id'
+
+	Insert_Person:
+
+
+
+	many: 'Company'
+	include: 'Group'
+	where: {OR: {Company__name: {like: '%ab%'}, Company__id: {like: '%ab%'}}}
+	order: 'Company.name, Company.id'
+
+query
+	Person:
+		include: ['Company', 'Group']
+		where: {Company__name: {gt: 2}}
+		order: ['Company.name', 'Company.id']
+
+query
+	Person:
+		include: [Company]
+		where: {Company__name: {gt: 2}}
+		order: [Company.name]
+
+query
+	Person:
+		join: {Company: 'Person.companyId=Company.id'}
+		where: {'Company.name': {gt: 2}}
+		order: ['Company.name']
+
+
+select * from Person p
+join Company c on p.companyId = c.id
+where c.name > 2
+order c.name
+
+
+
+
+
+
+
+
+
+
+
+
+models
+	Person:
+		fields: [:id, :date, :name]
+		associations:
+			Company: {oneToMany: :Person.companyId=Company.id}
+	Company:
+		fields:
+			id: :int
+			date: :date
+
+
+
+
+
+models
+	Person:
+		fields: [$id, $date, $name]
+		associations:
+			Company: {oneToMany: :Person.companyId=Company.id}
+	Company:
+		fields:
+			id: :int
+			date: :date
+
+
+
+
+
+
+
+
 # Popsiql
 Plain Objects Producing Simply Implementable Query Language
 
