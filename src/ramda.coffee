@@ -1,90 +1,56 @@
-{allPass, compose, contains, curry, equals, flatten, gt, gte, isEmpty, join, keys, length, lt, lte, map, mapObjIndexed, pick, pickBy, replace, test, union, values, where} = R = require 'ramda' # auto_require: ramda
-{change, $} = RE = require 'ramda-extras' # auto_require: ramda-extras
-[] = [] #auto_sugar
+import contains from "ramda/es/contains"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import test from "ramda/es/test"; #auto_require: esramda
+import {mapO, $} from "ramda-extras" #auto_require: esramda-extras
 
-{_expandQuery, _isSimple} = require './query'
+read = (config, fullSpec, parent=null) ->
+	return $ fullSpec, mapO (spec, key) ->
+		if spec.multiplicity == 'many'
+			res = []
+			resById = {}
+			Where = {...spec.where}
 
-$$ = (data, functions...) -> compose(functions...)(data)
+			if spec.relParentId
+				Where[spec.relParentId] = {in: pluck 'id', parent.res}
 
-preds = {}
+			for id, o of config.data[spec.entity]
+				if whereTest Where, o
+					r = pick spec.allFields, o
+					res.push r
+					resById[r.id] = r
 
-whereToComp = (where) ->
-	$$ where, allPass, flatten, values, mapObjIndexed (preds, field) ->
-		$$ preds, values, mapObjIndexed (v, op) ->
-			switch op 
-				when 'eq' then (o) -> equals o[field], v
-				when 'ne' then (o) -> !equals o[field], v
-				when 'gt' then (o) -> o[field] > v
-				when 'lt' then (o) -> o[field] < v
-				when 'gte' then (o) -> o[field] >= v
-				when 'lte' then (o) -> o[field] <= v
-				when 'in' then (o) -> contains o[field], v
-				when 'like' then (o) -> test new RegExp(replace(/%/g, '.*', v)), o[field]
-				when 'ilike' then (o) -> test new RegExp(replace(/%/g, '.*', v), 'i'), o[field]
-				when 'notlike' then (o) -> ! test new RegExp(replace(/%/g, '.*', v)), o[field]
-				when 'notilike' then (o) -> ! test new RegExp(replace(/%/g, '.*', v), 'i'), o[field]
+					if spec.relParentId
+						parent.resById[r[spec.relParentId]][key] ?= []
+						parent.resById[r[spec.relParentId]][key].push r
 
-readNode = curry (cache, node, join = null) ->
-	# NOTE: this one could probably be optimized quite a bit if needed
-	{entity, where: ʹwhere, fields, allFields, rels} = node
+			if spec.subs
+				read config, spec.subs, {res, resById}
 
-	where = if join then change ʹwhere, join else ʹwhere
-
-	vals = null
-	if isEmpty where then vals = $ cache[entity], values
-
-	else if where.id && $(where, keys, length, equals(1)) && $ where.id, keys, equals ['eq']
-		vals = [cache[entity][where.id.eq]]
-
-	else
-		comp = whereToComp(where)
-		vals = $ cache[entity], pickBy(whereToComp(where)), values, map(pick(allFields))
-
-	relFields = []
-	if rels
-		for val in vals
-			for k, rel of rels
-				[parentOnK, relOnK] = rel.parentOn
-				val[k] = readNode cache, rel, {[relOnK]: {eq: val[parentOnK]}}
-				relFields.push k
-
-	valsʹ = map pick(union fields, relFields), vals
-
-	if test /One〳?$/, node.parentMultiplicity then valsʹ[0]
-	else valsʹ
-
-	# return $ cache[entity], pickBy ({id, age}) -> id > 2 && id < 8 && age < 35 && age > 30
+			return res
+		else
+			if !parent then throw new Error 'one-queries at root is not yet implemented'
+			if spec.relIdFromParent
+				for r in parent.res
+					r[key] = pick spec.allFields, config.data[spec.entity][r[spec.relIdFromParent]]
 
 
 
-###### MAIN ###################################################################
-module.exports =
-	write: (query, model, options = {}) ->
-	update: (query, model, options = {}) ->
-	remove: (query, model, options = {}) ->
-	read: (query, cache, model) ->
-		queries = _expandQuery query, model
+export default ramda = (config) -> (query) ->
+	spec = config.parse query
+	return read config, spec
+	
+whereTest = (Where, o) ->
+	for k,preds of Where
+		for op, v of preds
+			switch op
+				when 'eq' then if o[k] != v then return false
+				when 'neq' then if o[k] == v then return false
+				when 'gt' then if o[k] <= v then return false
+				when 'gte' then if o[k] < v then return false
+				when 'lt' then if o[k] >= v then return false
+				when 'lte' then if o[k] > v then return false
+				when 'in' then if !contains o[k], v then return false
+				when 'like' then if !test new RegExp(replace(/%/g, '.*', v)), o[k] then return false
+				when 'ilike' then if !test new RegExp(replace(/%/g, '.*', v), 'i'), o[k] then return false
+				when 'notlike' then if test new RegExp(replace(/%/g, '.*', v)), o[k] then return false
+				when 'notilike' then if test new RegExp(replace(/%/g, '.*', v), 'i'), o[k] then return false
 
-		# console.log JSON.stringify queries, null, 2
-
-		res = map readNode(cache), queries
-		# console.log 'res:', JSON.stringify res, null, 2
-
-		if _isSimple query then res.query else res
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	return true

@@ -1,305 +1,105 @@
-{append, apply, concat, contains, curry, flatten, isEmpty, join, map, path, replace, test, toLower, toPairs, trim, type, union, unnest, values, where} = R = require 'ramda' # auto_require: ramda
-{change, cc, doto, $, fmap, fmapObjIndexed, $$, toPair, mapO} = RE = require 'ramda-extras' # auto_require: ramda-extras
-[ːID_Int_Seq, ːBool, ːStr, ːDate, ːDateTime, ːInt, ːFloat] = ['ID_Int_Seq', 'Bool', 'Str', 'Date', 'DateTime', 'Int', 'Float'] #auto_sugar
-
-util = require 'util'
-S = (o) -> util.inspect o, {depth: 9}
-{_expandQuery, _expandWrite, _isSimple} = require './query'
-
-class PopsiqlSQLError extends Error
-	constructor: (msg) ->
-		super msg
-		@name = 'PopsiqlSQLError'
-		Error.captureStackTrace this, PopsiqlSQLError
-
-PSE = PopsiqlSQLError
-
-###### HELPERS ################################################################
-esc = (s) -> "\"#{s}\""
-unEsc = (s) -> replace /\"/g, '', s
-val = (x) -> if isNaN x then "'#{x}'" else x
-ent = (e, model) -> esc model.$config.entityToTable e
-
-addAlias = curry (aliases, node) ->
-	if node.topLevel && !node.rels then return node
-	alias = toLower node.entity[0]
-	alias += node.entity[alias.length] while contains alias, aliases
-	aliases.push alias
-
-	if !node.rels then {...node, alias}
-	else {...node, alias, rels: map addAlias(aliases), node.rels}
-
-addAliases = (queries) ->
-	fmap queries, (q) -> addAlias [], q
-
-
-###### FROM ###################################################################
-makeFrom = ({entity, rels}, model) ->
-	"#{ent entity, model}#{rels && " as #{toLower entity[0]}" || ''}"
-
-
-###### FIELDS #################################################################
-makeFieldsForNode = ({allFields, allFlag, alias, rels}) ->
-	# if allFlag then return []
-	fs = fmap allFields, (s) -> alias && "#{alias}.#{esc(s)}" || esc(s)
-	concat fs, doto rels || {}, map(makeFieldsForNode), values, flatten
-
-# makeFields = (query) -> join(', ', makeFieldsForNode(query)) || '*'
-
-
-###### WHERE ##################################################################
-ops = {eq: '=', ne: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=', in: 'IN',
-like: 'LIKE', ilike: 'ILIKE', notlike: 'NOT LIKE', notilike: 'NOT ILIKE'}
-
-toOpAndVal = (op, v) -> op == 'in' && "IN (#{map(val, v)})" || "#{ops[op]} #{val(v)}"
-
-toPred = curry (alias, k, op, v) -> "#{alias && alias + '.' || ''}#{esc(k)} #{toOpAndVal(op, v)}"
-
-toPreds = curry (alias, k, v) -> $ v, toPairs, map(apply(toPred(alias, k)))
-
-makePreds = ({where, alias}) ->
-	$ where, toPairs, map(apply(toPreds(alias))), flatten, join ' AND '
-
-
-###### JOIN ###################################################################
-makeJoinForNode = curry (model, query) ->
-	{entity, alias, rels, where} = query
-	if !rels then return []
-
-	joins = fmapObjIndexed rels, (rel, k) ->
-		[on1, on2] = model[entity].$rels[k].on
-		"""left outer join #{ent rel.entity, model} as #{rel.alias} \
-		on #{alias}.#{esc(on1)} = #{rel.alias}.#{esc(on2)}\
-		#{if isEmpty rel.where then '' else ' AND ' + makePreds rel}"""
-
-	concat values(joins), $(rels, map(makeJoinForNode(model)), values, flatten)
-
-makeJoin = (query, model, newLine) -> join newLine, makeJoinForNode(model, query)
-
-
-###### CREATE TABLE ###########################################################
-coldef = (k, v) -> "#{esc k} #{v}"
-
-makeColumns = (fields) ->
-	res = doto fields, toPairs, map ([field, dataType]) ->
-		if field == '$rels' || field == '$subs'
-			return []
-
-		if type(dataType) == 'Object'
-			[k, v] = toPair dataType
-			if k == 'oneToOne' then return [] # not yet implemented
-			else if k == 'oneToMany' then return [] # not yet implemented
-			else if k == 'manyToOne' then return [] # not yet implemented
-			throw new PSE "Object type for key '#{k}' not yet implemented"
-
-		notNull = if test /〳$/, dataType then '' else ' NOT NULL'
-		dataTypeʹ = if test /〳$/, dataType then replace /〳$/, '', dataType else dataType
-		switch dataTypeʹ
-			when ːID_Int_Seq then coldef(field, 'serial') + ", PRIMARY KEY (\"#{field}\")"
-			when ːStr then coldef field, 'text' + notNull
-			when ːInt then coldef field, 'integer' + notNull
-			when ːFloat then coldef field, 'float' + notNull
-			when ːBool then coldef field, 'boolean' + notNull
-			when ːDate then coldef field, 'date' + notNull
-			when ːDateTime then coldef field, 'timestamp with time zone' + notNull
-			else throw new PSE "unsupported data type '#{dataType}'"
-
-	return flatten res
-
-makeTables = (model) ->
-	tables = []
-	for entity, fields of model
-		if entity == '$config' then continue
-
-		tables.push """CREATE TABLE "public".#{ent entity, model} (
-			#{join(',\n\t', makeColumns(fields))}
-		);
-		"""
-
-	return tables
-
-
-###### BUILD RESULT ###########################################################
-buildColMap = ({entity, allFields, rels}) ->
-	allFieldsʹ = fmap allFields, (f) -> [entity, f]
-	if !rels then allFieldsʹ
-	else concat allFieldsʹ, $ rels, values, map(buildColMap), unnest
-
-
-###### SUB QUERIES ###########################################################
-extractSubQueries = (query, model) ->
-	res = flatten subsForNode model, [], query
-	console.log '####################################################'
-	console.log S res
-
-subsForNode = curry (model, path, node) ->
-	subs = []
-	if node.subs
-		test1 = $$ node.subs, values, mapO (v, key) -> {...v, key, path}
-		console.log test1
-		subs.push ...test1
-		console.log subs
-
-	if node.rels
-		relSubs = $ node.rels, mapO((v, k) -> subsForNode(model, append(k, path), v)), values
-		return subs.concat relSubs
-
-	return subs
-
-buildData = (query, rows, cache = {}) ->
-	colMap = buildColMap query
-
-
-	for row in rows
-		obj = {}
-		[lastEntity, _] = colMap[0]
-		for col, i in row
-			[entity, field] = colMap[i]
-			if col == undefined then continue
-			if entity != lastEntity
-				cache = change {[lastEntity]: {[obj.id]: obj}}, cache
-				obj = {}
-			obj[field] = col
-			lastEntity = entity
-		cache = change {[lastEntity]: {[obj.id]: obj}}, cache
-
-	return cache
-	# fieldsʹ = map unEsc, fields
-	# return fmap rows, (r) ->
-	# 	console.log 0, fieldsʹ
-	# 	console.log 0, r
-	# 	zipObj fieldsʹ, r
-
-handleQuery = (q, model, exec, cache, {newLine}) ->
-	fields = makeFieldsForNode q
-
-	sql = cc replace(/  /, ' '), trim, join(newLine), [
-		"SELECT #{q.allFlag && '*' || join(', ', fields)}"
-		"FROM #{makeFrom q, model}"
-		makeJoin q, model, newLine
-		if isEmpty q.where then '' else 'WHERE ' + makePreds q
-	]
-	sqlRows = exec sql
-	data = buildData q, sqlRows, cache
-	# dataʹ = await handleSubQueries q, model, data, exec
-	return data
-
-
-handleSubQueries = (query, model, data, exec) ->
-	return _expandSubQuery query, model, data, (q, input) ->
-		sql = 1
-			# "SELECT #{makeFields q}"
-			# "FROM #{makeFrom q, model}"
-			# makeJoin q, model, newLine
-			# if isEmpty q.where then '' else 'WHERE ' + makePreds q
-		sqlRows = exec sql
-		dataʹ = buildResult sqlRows, data
-		return handleSubQueries q, model, dataʹ, exec
-
-
-
-
-###### MAIN ###################################################################
-module.exports =
-	write: (query, model, options = {}) ->
-		{query: queryʹ} = _expandWrite query, model
-
-		"""INSERT INTO #{ent queryʹ.entity, model} \
-		(#{doto(queryʹ.fields, map(esc), join(', '))}) VALUES \
-		(#{doto(queryʹ.values, values, map(val), join(', '))}) RETURNING \
-		#{doto(queryʹ.fields, union(['id']), map(esc), join(', '))};"""
-
-	update: (query, model, options = {}) ->
-	remove: (query, model, options = {}) ->
-	read: (rawQuery, model, exec, options = {}) ->
-		queries = _expandQuery rawQuery, model
-		queriesʹ = addAliases queries
-		newLine = if options.newLine then '\n' else ' '
-
-		cache = {}
-		for k,q of queriesʹ
-			cache = await handleQuery q, model, exec, cache, {newLine}
-		# res = $$ queriesʹ, map (q) ->
-		# 	data = await handleQuery q, model, exec, {newLine}
-		# 	return data
-
-		# res = fmap queriesʹ, (q) ->
-		# 	sql = cc replace(/  /, ' '), trim, join(newLine), [
-		# 		"SELECT #{makeFields q}"
-		# 		"FROM #{makeFrom q, model}"
-		# 		makeJoin q, model, newLine
-		# 		if isEmpty q.where then '' else 'WHERE ' + makePreds q
-		# 	]
-		# 	sqlRows = exec sql
-		# 	console.log '--------------'
-		# 	console.log util.inspect q, {depth: 8}
-		# 	console.log '--------------'
-		# 	console.log sqlRes
-		# 	console.log '--------------'
-		# 	subs = extractSubQueries q, model
-
-		# 	data = buildData sqlRows
-		# 	subData = await handleSubQueries q, model, data, exec
-
-		# 	return sqlRes
-
-
-		# console.log 3, res, _isSimple rawQuery
-		# res2 = await PromiseProps res
-		# console.log 6, res2
-		# console.log 7, Promise.prop
-
-		return cache
-		# if _isSimple rawQuery then res2.query else res2
-
-	buildResult: (query, rows, model) ->
-		queries = _expandQuery query, model
-		cache = {}
-		for k, queryʹ of queries
-			colMap = buildColMap queryʹ
-
-			for row in rows
-				obj = {}
-				[lastEntity, _] = colMap[0]
-				for col, i in row
-					[entity, field] = colMap[i]
-					if entity != lastEntity
-						cache = change {[lastEntity]: {[obj.id]: obj}}, cache
-						obj = {}
-					obj[field] = col
-					lastEntity = entity
-				cache = change {[lastEntity]: {[obj.id]: obj}}, cache
-
-		return cache
-
-
-
-
-
-
-
-	createTables: (model, options = {}) ->
-		tblsToCreate = makeTables model
-		return join '\n', tblsToCreate
-
-	# exportData: (model, options = {}) ->
-	# importData: (model, data, options = {}) ->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import contains from "ramda/es/contains"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import where from "ramda/es/where"; #auto_require: esramda
+import {mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
+
+_camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
+_snakeToCamel = (s) -> $ s, replace /_[a-z]/g, (s) -> toUpper s[1]
+
+defaultConfig =
+	keyToDb: _camelToSnake,
+	keyFromDb: _snakeToCamel
+	runner: () -> throw new Error 'Must supply a runner'
+
+export default sql = (config_) ->
+	{keyToDb, keyFromDb} = config = {...defaultConfig, ...config_}
+
+	# https://www.postgresql.org/docs/8.1/sql-keywords-appendix.html
+	# All except "non-reserved" from list
+	keywords = ['A', 'ABS', 'ADA', 'ALIAS', 'ALL', 'ALLOCATE', 'ALWAYS', 'ANALYSE', 'ANALYZE', 'AND', 'ANY', 'ARE', 'ARRAY', 'AS', 'ASC', 'ASENSITIVE', 'ASYMMETRIC', 'ATOMIC', 'ATTRIBUTE', 'ATTRIBUTES', 'AUTHORIZATION', 'AVG', 'BERNOULLI', 'BETWEEN', 'BINARY', 'BITVAR', 'BIT_LENGTH', 'BLOB', 'BOTH', 'BREADTH', 'C', 'CALL', 'CARDINALITY', 'CASCADED', 'CASE', 'CAST', 'CATALOG', 'CATALOG_NAME', 'CEIL', 'CEILING', 'CHARACTERS', 'CHARACTER_LENGTH', 'CHARACTER_SET_CATALOG', 'CHARACTER_SET_NAME', 'CHARACTER_SET_SCHEMA', 'CHAR_LENGTH', 'CHECK', 'CHECKED', 'CLASS_ORIGIN', 'CLOB', 'COBOL', 'COLLATE', 'COLLATION', 'COLLATION_CATALOG', 'COLLATION_NAME', 'COLLATION_SCHEMA', 'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COMMAND_FUNCTION', 'COMMAND_FUNCTION_CODE', 'COMPLETION', 'CONDITION', 'CONDITION_NUMBER', 'CONNECT', 'CONNECTION_NAME', 'CONSTRAINT', 'CONSTRAINT_CATALOG', 'CONSTRAINT_NAME', 'CONSTRAINT_SCHEMA', 'CONSTRUCTOR', 'CONTAINS', 'CONTINUE', 'CORR', 'CORRESPONDING', 'COUNT', 'COVAR_POP', 'COVAR_SAMP', 'CREATE', 'CROSS', 'CUBE', 'CUME_DIST', 'CURRENT', 'CURRENT_DATE', 'CURRENT_DEFAULT_TRANSFORM_GROUP', 'CURRENT_PATH', 'CURRENT_ROLE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_TRANSFORM_GROUP_FOR_TYPE', 'CURRENT_USER', 'CURSOR_NAME', 'DATA', 'DATE', 'DATETIME_INTERVAL_CODE', 'DATETIME_INTERVAL_PRECISION', 'DEFAULT', 'DEFERRABLE', 'DEFINED', 'DEGREE', 'DENSE_RANK', 'DEPTH', 'DEREF', 'DERIVED', 'DESC', 'DESCRIBE', 'DESCRIPTOR', 'DESTROY', 'DESTRUCTOR', 'DETERMINISTIC', 'DIAGNOSTICS', 'DICTIONARY', 'DISCONNECT', 'DISPATCH', 'DISTINCT', 'DO', 'DYNAMIC', 'DYNAMIC_FUNCTION', 'DYNAMIC_FUNCTION_CODE', 'ELEMENT', 'ELSE', 'END', 'END-EXEC', 'EQUALS', 'EVERY', 'EXCEPT', 'EXCEPTION', 'EXCLUDE', 'EXEC', 'EXISTING', 'EXP', 'FALSE', 'FILTER', 'FINAL', 'FLOOR', 'FOLLOWING', 'FOR', 'FOREIGN', 'FORTRAN', 'FOUND', 'FREE', 'FREEZE', 'FROM', 'FULL', 'FUSION', 'G', 'GENERAL', 'GENERATED', 'GET', 'GO', 'GOTO', 'GRANT', 'GROUP', 'GROUPING', 'HAVING', 'HIERARCHY', 'HOST', 'IDENTITY', 'IGNORE', 'ILIKE', 'IMPLEMENTATION', 'IN', 'INDICATOR', 'INFIX', 'INITIALIZE', 'INITIALLY', 'INNER', 'INSTANCE', 'INSTANTIABLE', 'INTERSECT', 'INTERSECTION', 'INTO', 'IS', 'ISNULL', 'ITERATE', 'JOIN', 'K', 'KEY_MEMBER', 'KEY_TYPE', 'LATERAL', 'LEADING', 'LEFT', 'LENGTH', 'LESS', 'LIKE', 'LIMIT', 'LN', 'LOCALTIME', 'LOCALTIMESTAMP', 'LOCATOR', 'LOWER', 'M', 'MAP', 'MATCHED', 'MAX', 'MEMBER', 'MERGE', 'MESSAGE_LENGTH', 'MESSAGE_OCTET_LENGTH', 'MESSAGE_TEXT', 'METHOD', 'MIN', 'MOD', 'MODIFIES', 'MODIFY', 'MODULE', 'MORE', 'MULTISET', 'MUMPS', 'NAME', 'NATURAL', 'NCLOB', 'NESTING', 'NEW', 'NORMALIZE', 'NORMALIZED', 'NOT', 'NOTNULL', 'NULL', 'NULLABLE', 'NULLS', 'NUMBER', 'OCTETS', 'OCTET_LENGTH', 'OFF', 'OFFSET', 'OLD', 'ON', 'ONLY', 'OPEN', 'OPERATION', 'OPTIONS', 'OR', 'ORDER', 'ORDERING', 'ORDINALITY', 'OTHERS', 'OUTER', 'OUTPUT', 'OVER', 'OVERLAPS', 'OVERRIDING', 'PAD', 'PARAMETER', 'PARAMETERS', 'PARAMETER_MODE', 'PARAMETER_NAME', 'PARAMETER_ORDINAL_POSITION', 'PARAMETER_SPECIFIC_CATALOG', 'PARAMETER_SPECIFIC_NAME', 'PARAMETER_SPECIFIC_SCHEMA', 'PARTITION', 'PASCAL', 'PATH', 'PERCENTILE_CONT', 'PERCENTILE_DISC', 'PERCENT_RANK', 'PLACING', 'PLI', 'POSTFIX', 'POWER', 'PRECEDING', 'PREFIX', 'PREORDER', 'PRIMARY', 'PUBLIC', 'RANGE', 'RANK', 'READS', 'RECURSIVE', 'REF', 'REFERENCES', 'REFERENCING', 'REGR_AVGX', 'REGR_AVGY', 'REGR_COUNT', 'REGR_INTERCEPT', 'REGR_R2', 'REGR_SLOPE', 'REGR_SXX', 'REGR_SXY', 'REGR_SYY', 'RESULT', 'RETURN', 'RETURNED_CARDINALITY', 'RETURNED_LENGTH', 'RETURNED_OCTET_LENGTH', 'RETURNED_SQLSTATE', 'RIGHT', 'ROLLUP', 'ROUTINE', 'ROUTINE_CATALOG', 'ROUTINE_NAME', 'ROUTINE_SCHEMA', 'ROW_COUNT', 'ROW_NUMBER', 'SCALE', 'SCHEMA_NAME', 'SCOPE', 'SCOPE_CATALOG', 'SCOPE_NAME', 'SCOPE_SCHEMA', 'SEARCH', 'SECTION', 'SELECT', 'SELF', 'SENSITIVE', 'SERVER_NAME', 'SESSION_USER', 'SETS', 'SIMILAR', 'SIZE', 'SOME', 'SOURCE', 'SPACE', 'SPECIFIC', 'SPECIFICTYPE', 'SPECIFIC_NAME', 'SQL', 'SQLCODE', 'SQLERROR', 'SQLEXCEPTION', 'SQLSTATE', 'SQLWARNING', 'SQRT', 'STATE', 'STATIC', 'STDDEV_POP', 'STDDEV_SAMP', 'STRUCTURE', 'STYLE', 'SUBCLASS_ORIGIN', 'SUBLIST', 'SUBMULTISET', 'SUM', 'SYMMETRIC', 'SYSTEM_USER', 'TABLE', 'TABLESAMPLE', 'TABLE_NAME', 'TERMINATE', 'THAN', 'THEN', 'TIES', 'TIMEZONE_HOUR', 'TIMEZONE_MINUTE', 'TO', 'TOP_LEVEL_COUNT', 'TRAILING', 'TRANSACTIONS_COMMITTED', 'TRANSACTIONS_ROLLED_BACK', 'TRANSACTION_ACTIVE', 'TRANSFORM', 'TRANSFORMS', 'TRANSLATE', 'TRANSLATION', 'TRIGGER_CATALOG', 'TRIGGER_NAME', 'TRIGGER_SCHEMA', 'TRUE', 'UESCAPE', 'UNBOUNDED', 'UNDER', 'UNION', 'UNIQUE', 'UNNAMED', 'UNNEST', 'UPPER', 'USAGE', 'USER', 'USER_DEFINED_TYPE_CATALOG', 'USER_DEFINED_TYPE_CODE', 'USER_DEFINED_TYPE_NAME', 'USER_DEFINED_TYPE_SCHEMA', 'USING', 'VALUE', 'VARIABLE', 'VAR_POP', 'VAR_SAMP', 'VERBOSE', 'WHEN', 'WHENEVER', 'WHERE', 'WIDTH_BUCKET', 'WINDOW', 'WITHIN']
+	esc = (s) -> if contains toUpper(s), keywords then "\"#{s}\"" else s
+	value = (x) ->
+		if isNil x then "null"
+		else if type(x) == 'Date' then "'#{x.toISOString()}'"
+		else if type(x) == 'String' then "'#{x.replace(/'/g, "''")}'"
+		else x
+
+	getFields = (allFields) -> $ allFields, map(keyToDb), map(esc), join ', '
+	getTable = (entity) -> toLower esc entity
+	getWhere = (where) ->
+		clauses = []
+		params = []
+		for k, preds of where
+			for op, val of preds
+				if op == 'in' then clauses.push "#{keyToDb k} = ANY($#{params.length + 1})"
+				else clauses.push "#{keyToDb k} #{ops[op]} $#{params.length + 1}"
+				params.push value(val)
+		return [clauses.join(' AND '), params]
+
+	ops = {eq: '=', ne: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=',
+	like: 'LIKE', ilike: 'ILIKE', notlike: 'NOT LIKE', notilike: 'NOT ILIKE'}
+
+	byId = (xs) ->
+		ret = {}
+		for x in xs then ret[x.id] = x
+		return ret
+
+	parseResult = (r) ->
+		# Note: här kan vi nog optimera endel
+		ret = {}
+		for k, v of r
+			ret[keyFromDb k] = v
+		return ret
+
+
+	read = (fullSpec, parent=null) ->
+		return PromiseProps $ fullSpec, mapO (spec, key) ->
+			if spec.multiplicity == 'many'
+				Where = {...spec.where}
+
+				if spec.relParentId
+					Where[spec.relParentId] = {in: pluck 'id', parent.res}
+
+				sql = "SELECT #{getFields spec.allFields} FROM #{getTable spec.entity}"
+				params = []
+				if !isEmpty Where
+					[whereClause, whereParams] = getWhere Where
+					params.push ...whereParams
+					sql += " WHERE #{whereClause}"
+				res_ = await config.runner sql, params
+				res = map parseResult, res_
+				resById = byId res
+
+				if spec.relParentId
+					for r in res
+						parent.resById[r[spec.relParentId]][key] ?= []
+						parent.resById[r[spec.relParentId]][key].push r
+
+				if spec.subs
+					await read spec.subs, {res, resById}
+				
+				return res
+			else
+				if !parent then throw new Error 'one-queries at root is not yet implemented'
+				if spec.relIdFromParent
+					Where = {id: {in: $ parent.res, pluck spec.relIdFromParent}}
+					params = []
+					[whereClause, whereParams] = getWhere Where
+					params.push ...whereParams
+					sql = "SELECT #{getFields spec.allFields} FROM #{getTable spec.entity} WHERE #{whereClause}"
+
+					res = await config.runner sql, params
+					resById = byId res
+
+					for r in parent.res
+						r[key] = pick spec.allFields, resById[r[spec.relIdFromParent]]
+
+					return res
+
+
+	return (query) ->
+		spec = config.parse query
+		res = await read spec
+		return res
+	
 
 
 
