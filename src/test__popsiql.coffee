@@ -2,8 +2,11 @@ import drop from "ramda/es/drop"; import join from "ramda/es/join"; import keys 
 import {$} from "ramda-extras" #auto_require: esramda-extras
 _ = (...xs) -> xs
 
+import {deepEq, eq, throws} from 'comon/shared/testUtils'
+
 import popsiql from './popsiql'
 import {Client, types} from 'pg'
+
 
 types.setTypeParser 1700, (val) -> parseFloat val # parse numeric/decimal as float
 
@@ -57,7 +60,7 @@ describe 'pop', () ->
 				Project: {client: {entity: 'Client', rel: 'clientId'}, owner: {entity: 'User', rel: 'userId'}}
 				User: {projects: {entity: 'Project', theirRel: 'userId'}}
 			res = popsiql(model1, {ramda: {data}})
-			expect(res.model).toEqual expected
+			deepEq expected, res.model
 
 	describe 'parse', () ->
 		it '1', () ->
@@ -87,15 +90,15 @@ describe 'pop', () ->
 									allFields: ['id', 'name']
 									relIdFromParent: 'userId'
 
-			expect(popsiql1.parse query1).toEqual expected
+			deepEq expected, popsiql1.parse query1
 
 		it 'helpful if bad body', ->
-			expect(() -> popsiql1.parse {clients: {name: 1}}).toThrow 'body not array'
+			throws 'body not array', -> popsiql1.parse {clients: {name: 1}}
 
 
 	describe 'ramda', () ->
 		it '1', () ->
-			expect(popsiql1.ramda query1).toEqual expected1
+			deepEq expected1, popsiql1.ramda query1
 
 	describe 'sql with postgres', () ->
 
@@ -149,25 +152,26 @@ describe 'pop', () ->
 			[pgPopsiql, history] = newPgPopsiql()
 			res = await pgPopsiql.sql clients: _ {:name}
 			expected = clients: [{id: 1, name: 'c1'}, {id: 2, name: 'c2'}, {id: 3, name: 'c3'}, {id: 4, name: 'c4'}]
-			expect(res).toEqual expected
+			deepEq expected, res
 			expect(history).toEqual ['SELECT id, "name" FROM client', []]
+			deepEq ['SELECT id, "name" FROM client', []], history
 
 		it 'easy IN', () ->
 			[pgPopsiql, history] = newPgPopsiql()
 			res = await pgPopsiql.sql clients: _ {id: {in: [1, 2]}}
 			expected = clients: [{id: 1}, {id: 2}]
-			expect(res).toEqual expected
-			expect(history).toEqual ['SELECT id FROM client WHERE id = ANY($1)', [[1, 2]]]
+			deepEq expected, res
+			deepEq ['SELECT id FROM client WHERE id = ANY($1)', [[1, 2]]], history
 
 		it 'medium', () ->
 			[pgPopsiql, history] = newPgPopsiql()
 			res = await pgPopsiql.sql query1
-			expect(res).toEqual expected1
-			expect(history).toEqual [
+			deepEq expected1, res
+			deepEq [
 				'SELECT id, "name", archived FROM client WHERE archived = $1', [false],
 				'SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > $1 AND client_id = ANY($2)', [100, [1, 4]]
 				'SELECT id, "name" FROM "user" WHERE id = ANY($1)', [[1, 2]],
-			]
+			], history
 
 		describe 'sql injections', () ->
 
@@ -175,66 +179,24 @@ describe 'pop', () ->
 				[pgPopsiql, history] = newPgPopsiql()
 				query = clients: _ {name: 1, "--\n drop client;--": 1}
 				await expect(pgPopsiql.sql query).rejects.toThrow 'invalid field'
-				expect(history).toEqual []
+				deepEq [], history
+
 
 			it 'hex', ->
 				[pgPopsiql, history] = newPgPopsiql()
 				query = clients: _ {name: 1, "rank0x2d0x2d0x20drop0x20client": 1}
 				await expect(pgPopsiql.sql query).rejects.toThrow 'invalid field'
-				expect(history).toEqual []
+				deepEq [], history
 
 			it 'quote clause', ->
 				[pgPopsiql, history] = newPgPopsiql()
 				query = clients: _ {name: 1, rank: {eq: "\'-- drop clients;--"}, archived: 1}
 				res = await pgPopsiql.sql query
-				expect(res).toEqual {clients: []}
-				expect(history).toEqual [
+				deepEq {clients: []}, res
+				deepEq [
 					'SELECT id, "name", "rank", archived FROM client WHERE rank = $1', ["'''-- drop clients;--'"]
-				]
+				], history
 
 
 
-
-
-	# describe 'sql with sqllite', () ->
-
-	# 	db = new sqlite3.Database(':memory:')
-
-	# 	valToSql = (val) ->
-	# 		switch type val
-	# 			when 'Number' then val
-	# 			when 'String' then "'#{val}'"
-	# 			when 'Boolean' then val && 'true' || 'false'
-	# 			when 'Null' then 'null'
-	# 			else val
-
-	# 	vals = (o) -> $ o, values, map(valToSql), join ','
-	# 	cols = (o) -> $ o, keys, join ','
-	# 	table = (k) -> toLower k
-
-	# 	before (done) ->
-
-	# 		db.serialize () ->
-	# 			db.run("CREATE TABLE client (id INT, name TEXT, archived BOOLEAN, rank TEXT)")
-	# 			db.run("CREATE TABLE project (id INT, name TEXT, rate DECIMAL, clientId INT, userId INT)")
-	# 			db.run("CREATE TABLE user (id INT, name TEXT, email TEXT)")
-
-	# 			for entity, os of data
-	# 				for k, o of os
-	# 					db.run("INSERT INTO #{table entity} (#{cols o}) VALUES (#{vals o})")
-
-	# 			done()
-
-	# 	it '1', () ->
-	# 		runner = (sql) ->
-	# 			return new Promise (resolve) ->
-	# 				console.log sql 
-	# 				db.all sql, (err, rows) -> resolve rows
-
-	# 		myPopsiql = pop.popsiql model1, {sql: runner}
-	# 		res = await myPopsiql.sql query1
-	# 		deepEq expected1_sqllite, clone res
-
-	# 	after () ->
-	# 		db.close()
 

@@ -5,25 +5,18 @@
   "main": "src/popsiql.coffee",
   "type": "module",
   "scripts": {
-    "test": "npm-run-all --parallel webpack-test jest trap",
+    "test": "npm-run-all clean-temp --parallel webpack-test jest trap",
     "webpack-test": "webpack --watch",
     "jest": "jest --watchAll",
-    "trap": "../hack/temp_trap",
-    "link": "npm link popsiql shortstyle ramda-extras"
+    "clean-temp": "rimraf ./temp",
+    "trap": "../hack/temp_trap"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Cottin/popsiql.git"
   },
-  "keywords": [
-    "sql"
-  ],
   "author": "Victor Cottin <victor@wecodebetter.se> (http://www.wecodebetter.se/)",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/Cottin/popsiql/issues"
-  },
-  "homepage": "https://github.com/Cottin/popsiql",
   "dependencies": {
     "ramda": "^0.27.1",
     "ramda-extras": "^0.4.20"
@@ -32,16 +25,17 @@
     "@babel/preset-env": "^7.15.4",
     "@babel/register": "^7.15.3",
     "@babel/runtime": "^7.15.3",
+    "coffee-loader": "^4.0.0",
     "coffeescript": "^2.5.1",
-    "webpack-cli": "^4.10.0",
+    "fs": "^0.0.1-security",
+    "jest": "^29.2.1",
+    "node-polyfill-webpack-plugin": "^2.0.1",
+    "npm-run-all": "^4.1.5",
     "pg": "^8.8.0",
     "pg-native": "^3.0.1",
+    "rimraf": "^3.0.2",
     "webpack": "^5.74.0",
-    "npm-run-all": "^4.1.5",
-    "node-polyfill-webpack-plugin": "^2.0.1",
-    "jest": "^29.2.1",
-    "fs": "^0.0.1-security",
-    "coffee-loader": "^4.0.0"
+    "webpack-cli": "^4.10.0"
   },
   "jest": {
     "setupFilesAfterEnv": [

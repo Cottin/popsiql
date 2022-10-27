@@ -1,16 +1,15 @@
 import path from 'path'
-import R from 'ramda'
 import {fileURLToPath} from 'url'
 import NodePolyfillPlugin from 'node-polyfill-webpack-plugin'
 import glob from 'glob'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const testEntries = R.reduce((acc, val) => {
+const testEntries = glob.sync("./src/**/test__*.coffee").reduce((acc, val) => {
 			const filenameRegex = /test__([\w\d_-]*)\.coffee$/i
 			acc[val.match(filenameRegex)[1]] = val
 			return acc
-		}, {}, glob.sync("./src/**/test__*.coffee"))
+		}, {})
 
 export default {
 	entry: testEntries,
@@ -57,6 +56,10 @@ export default {
 	module: {
 		rules: [
 			{
+				include: [
+					path.resolve(__dirname),
+					path.resolve(__dirname, '../comon'),
+				],
 				exclude: /node_modules|packages/,
 				test: /\.coffee$/,
 				use: [
@@ -68,6 +71,9 @@ export default {
 	},
 	target: 'node',
 	resolve: {
-		extensions: ['.js', '.coffee']
+		extensions: ['.js', '.coffee'],
+		alias: {
+			comon: path.resolve(__dirname, '../comon')
+		}
 	},
 }
