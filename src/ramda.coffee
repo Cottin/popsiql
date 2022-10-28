@@ -1,6 +1,5 @@
-import both from "ramda/es/both"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import includes from "ramda/es/includes"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import test from "ramda/es/test"; #auto_require: esramda
+import ascend from "ramda/es/ascend"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import descend from "ramda/es/descend"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import includes from "ramda/es/includes"; import length from "ramda/es/length"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import prop from "ramda/es/prop"; import replace from "ramda/es/replace"; import sort from "ramda/es/sort"; import sortWith from "ramda/es/sortWith"; import test from "ramda/es/test"; #auto_require: esramda
 import {mapO, $} from "ramda-extras" #auto_require: esramda-extras
-
 
 
 export default ramda = (config) ->
@@ -8,39 +7,41 @@ export default ramda = (config) ->
 	read = (options, fullSpec, parent=null) ->
 		norm = if !parent then {} else parent.norm
 		fullRes = $ fullSpec, mapO (spec, key) ->
-			if spec.multiplicity == 'many'
-				res = []
-				resById = {}
-				Where = {...spec.where}
+			if spec.relIdFromParent
+				for r in parent.res
+					r[key] = pick spec.allFields, config.getData()[spec.entity][r[spec.relIdFromParent]]
+				return
 
-				if spec.relParentId
-					Where[spec.relParentId] = {in: pluck 'id', parent.res}
+			resById = {}
+			Where = {...spec.where}
 
-				for id, o of config.data[spec.entity]
-					if whereTest Where, o
-						r = pick spec.allFields, o
-						res.push r
-						resById[r.id] = r
+			if spec.relParentId
+				Where[spec.relParentId] = {in: pluck 'id', parent.res}
 
-						if options.result == :both
-							norm[spec.entity] ?= {}
-							if norm[spec.entity][r.id]
-								norm[spec.entity][r.id] = {...norm[spec.entity][r.id], ...r}
-							else norm[spec.entity][r.id] = {...r}
+			res_ = []
+			for id, o of config.getData()[spec.entity]
+				if whereTest Where, o
+					r = pick spec.allFields, o
+					res_.push r
+					resById[r.id] = r
 
-						if spec.relParentId
-							parent.resById[r[spec.relParentId]][key] ?= []
-							parent.resById[r[spec.relParentId]][key].push r
+					if options.result == :both
+						norm[spec.entity] ?= {}
+						if norm[spec.entity][r.id]
+							norm[spec.entity][r.id] = {...norm[spec.entity][r.id], ...r}
+						else norm[spec.entity][r.id] = {...r}
 
-				if spec.subs
-					read options, spec.subs, {res, resById, norm}
+					if spec.relParentId
+						parent.resById[r[spec.relParentId]][key] ?= []
+						parent.resById[r[spec.relParentId]][key].push r
 
-				return res
-			else
-				if !parent then throw new Error 'one-queries at root is not yet implemented'
-				if spec.relIdFromParent
-					for r in parent.res
-						r[key] = pick spec.allFields, config.data[spec.entity][r[spec.relIdFromParent]]
+			res = if spec.sort then sortWith sorter(spec.sort), res_ else res_
+
+			if spec.subs
+				read options, spec.subs, {res, resById, norm}
+
+			if spec.multiplicity == 'one' && length(res) == 1 then return res[0]
+			else return res
 
 		return if !parent && options.result == :both then [fullRes, norm] else fullRes
 
@@ -50,7 +51,7 @@ export default ramda = (config) ->
 		spec = config.parse query
 		return read {}, spec
 
-	fn.options = (options) -> (query) ->
+	fn.options = curry (options, query) ->
 		spec = config.parse query
 		return read options, spec
 
@@ -73,3 +74,10 @@ whereTest = (Where, o) ->
 				when 'notilike' then if test new RegExp(replace(/%/g, '.*', v), 'i'), o[k] then return false
 
 	return true
+
+sorter = (sortSpec) ->
+	$ sortSpec, map ({field, direction}) ->
+		if direction == 'DESC' then descend prop field
+		else if direction == 'ASC' then ascend prop field
+		else throw new Error "invalid direction given for sort #{direction} (should be ASC or DESC)"
+
