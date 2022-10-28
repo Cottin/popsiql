@@ -1,4 +1,4 @@
-import drop from "ramda/es/drop"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import project from "ramda/es/project"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import type from "ramda/es/type"; import values from "ramda/es/values"; #auto_require: esramda
+import both from "ramda/es/both"; import drop from "ramda/es/drop"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import project from "ramda/es/project"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import type from "ramda/es/type"; import values from "ramda/es/values"; #auto_require: esramda
 import {$} from "ramda-extras" #auto_require: esramda-extras
 _ = (...xs) -> xs
 
@@ -23,8 +23,8 @@ data =
 		4: {id: 4, name: 'p4', rate: 102, clientId: 2, userId: 1}
 		5: {id: 5, name: 'p5', rate: 101, clientId: 4, userId: 2}
 	User:
-		1: {id: 1, name: 'u1', email: 'u1@a.com'}
-		2: {id: 2, name: 'u2', email: 'u1@a.com'}
+		1: {id: 1, name: 'u1', email: 'u1@a.com', nickname: 'un1'}
+		2: {id: 2, name: 'u2', email: 'u1@a.com', nickname: 'un2'}
 
 model1 =
 	Client: {projects: 'Project'}
@@ -32,6 +32,7 @@ model1 =
 	User: {projects: 'Project'}
 
 query1 =
+	users: _ {:name, :nickname}
 	clients: _ {name: 1, archived: {eq: false}},
 		projects: _ {name: 1, rate: {gt: 100}},
 			owner: _ {name: 1}
@@ -40,13 +41,31 @@ expected1 = null
 (() ->
 	client1 = omit ['rank'], data.Client[1]
 	client4 = omit ['rank'], data.Client[4]
-	user1 = omit ['email'], data.User[1]
-	user2 = omit ['email'], data.User[2]
+	user1 = omit ['email', 'nickname'], data.User[1]
+	user2 = omit ['email', 'nickname'], data.User[2]
 	expected1 =
+		users: [
+			{...omit(['email'], data.User[1])}
+			{...omit(['email'], data.User[2])}
+		]
 		clients: [
 			{...client1, projects: [{...data.Project[2], owner: user1}]}
 			{...client4, projects: [{...data.Project[5], owner: user2}]}
 		])()
+
+expected1Norm = null
+(() ->
+	expected1Norm =
+		Client:
+			1: omit [:rank], data.Client[1]
+			4: omit [:rank], data.Client[4]
+		Project:
+			2: data.Project[2]
+			5: data.Project[5]
+		User:
+			1: omit [:email], data.User[1]
+			2: omit [:email], data.User[2]
+	)()
 
 popsiql1 = popsiql model1, {ramda: {data}}
 
@@ -65,6 +84,12 @@ describe 'pop', () ->
 	describe 'parse', () ->
 		it '1', () ->
 			expected =
+				users:
+					entity: 'User'
+					key: 'users'
+					multiplicity: 'many'
+					fields: [:name, :nickname]
+					allFields: [:id, :name, :nickname]
 				clients:
 					entity: 'Client'
 					key: 'clients'
@@ -97,8 +122,18 @@ describe 'pop', () ->
 
 
 	describe 'ramda', () ->
-		it '1', () ->
-			deepEq expected1, popsiql1.ramda query1
+		it 'simple', () ->
+			expected = [
+				{clients: [{id: 1, name: 'c1', rank: 'a'}]},
+				{Client: {1: {id: 1, name: 'c1', rank: 'a'}}}
+			]
+			deepEq expected, popsiql1.ramda.options({result: 'both'}) clients: _ {:name, rank: {eq: 'a'}}
+
+		it 'complex', () ->
+			[res, normRes] = popsiql1.ramda.options({result: 'both'}) query1
+
+			deepEq expected1, res
+			deepEq expected1Norm, normRes
 
 	describe 'sql with postgres', () ->
 
@@ -138,7 +173,7 @@ describe 'pop', () ->
 
 			await client.query('CREATE TABLE client (id INT, name TEXT, archived BOOLEAN, rank TEXT)')
 			await client.query('CREATE TABLE project (id INT, name TEXT, rate DECIMAL(10), client_id INT, user_id INT)')
-			await client.query('CREATE TABLE "user" (id INT, name TEXT, email TEXT)')
+			await client.query('CREATE TABLE "user" (id INT, name TEXT, email TEXT, nickname TEXT)')
 
 
 			for entity, os of data
@@ -168,6 +203,7 @@ describe 'pop', () ->
 			res = await pgPopsiql.sql query1
 			deepEq expected1, res
 			deepEq [
+				'SELECT id, "name", nickname FROM "user"', [],
 				'SELECT id, "name", archived FROM client WHERE archived = $1', [false],
 				'SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > $1 AND client_id = ANY($2)', [100, [1, 4]]
 				'SELECT id, "name" FROM "user" WHERE id = ANY($1)', [[1, 2]],
