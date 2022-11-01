@@ -2,6 +2,8 @@ import omit from "ramda/es/omit"; #auto_require: esramda
 import {} from "ramda-extras" #auto_require: esramda-extras
 _ = (...xs) -> xs
 
+import popsiql from './popsiql'
+
 export data =
 	Client:
 		1: {id: '1', name: 'c1', archived: false, rank: 'a'}
@@ -67,3 +69,4 @@ export expected1Norm = null
 export write1 = client: {id: 1, name: 'c1a'}
 
 
+export parse1 = popsiql model1

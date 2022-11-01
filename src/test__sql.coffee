@@ -4,9 +4,10 @@ _ = (...xs) -> xs
 
 import {deepEq, eq, throws, defuse} from 'comon/shared/testUtils'
 
-import {data, model1, query1, expected1, expected1Norm} from './test_mock'
+import {data, model1, query1, expected1, expected1Norm, parse1} from './test_mock'
 
 import popsiql from './popsiql'
+import popSql from './sql'
 import {Client, types} from 'pg'
 
 
@@ -15,8 +16,8 @@ types.setTypeParser 1700, (val) -> parseFloat val # parse numeric/decimal as flo
 
 describe 'sql with postgres', () ->
 
-	client = new Client({host: 'localhost', user: 'victor', database: 'popsiql', port: 5432})
-	newPgPopsiql = () ->
+	client = new Client {host: 'localhost', user: 'victor', database: 'popsiql', port: 5432}
+	newPsql = () ->
 		history = []
 		runner = (sql, params) ->
 			# console.log sql, params # comment in to see generated sql
@@ -25,8 +26,8 @@ describe 'sql with postgres', () ->
 			return new Promise (resolve) ->
 				result = await client.query(sql, params)
 				resolve result.rows
-		postgresPopsiql = popsiql model1, {sql: {runner}}
-		return [postgresPopsiql, history]
+		psql = popSql parse1, {runner}
+		return [psql, history]
 
 	valToSql = (val) ->
 		switch type val
@@ -62,15 +63,16 @@ describe 'sql with postgres', () ->
 		await client.end()
 
 	it 'easy', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		res = await pgPopsiql.sql clients: _ {:name}
+		[psql, history] = newPsql()
+		res = await psql clients: _ {:name}
 		expected = [{id: '1', name: 'c1'}, {id: '2', name: 'c2'}, {id: '3', name: 'c3'}, {id: '4', name: 'c4'}]
 		deepEq expected, res
 		deepEq ['SELECT id, "name" FROM client', []], history
 
 	it 'easy IN and norm', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		[res, resNorm] = await pgPopsiql.sql.options {result: 'both'}, clients: _ {id: {in: ['1', '2']}, :name}
+		[psql, history] = newPsql()
+		query = clients: _ {id: {in: ['1', '2']}, :name}
+		[res, resNorm] = await psql query, {result: 'both'}
 		expected = [
 			[{id: '1', name: 'c1'}, {id: '2', name: 'c2'}]
 			{Client: {1: {id: '1', name: 'c1'}, 2: {id: '2', name: 'c2'}}}
@@ -79,30 +81,30 @@ describe 'sql with postgres', () ->
 		deepEq ['SELECT id, \"name\" FROM client WHERE id = ANY($1)', [['1', '2']]], history
 
 	it 'easy one', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		res = await pgPopsiql.sql client: _ {name: {eq: 'c1'}}
+		[psql, history] = newPsql()
+		res = await psql client: _ {name: {eq: 'c1'}}
 		expected = {id: '1', name: 'c1'}
 		# deepEq expected, res
 		deepEq ['SELECT id, "name" FROM client WHERE name = $1', ['c1']], history
 
 	it 'easy one not found', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		res = await pgPopsiql.sql client: _ {name: {eq: 'c999'}}
+		[psql, history] = newPsql()
+		res = await psql client: _ {name: {eq: 'c999'}}
 		expected = null
 		deepEq expected, res
 		deepEq ['SELECT id, "name" FROM client WHERE name = $1', ['c999']], history
 
 	it 'easy one but return many', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		res = await pgPopsiql.sql client: _ {id: {lt: 3}, :name}
+		[psql, history] = newPsql()
+		res = await psql client: _ {id: {lt: 3}, :name}
 		expected = [{id: '1', name: 'c1'}, {id: '2', name: 'c2'}]
 		deepEq expected, res
 		deepEq ['SELECT id, "name" FROM client WHERE id < $1', [3]], history
 
 
 	it 'complex', () ->
-		[pgPopsiql, history] = newPgPopsiql()
-		[res, normRes] = await defuse pgPopsiql.sql.options {result: 'both'}, query1
+		[psql, history] = newPsql()
+		[res, normRes] = await defuse psql query1, {result: 'both'}
 		deepEq expected1, res
 		deepEq expected1Norm, normRes
 		deepEq [
@@ -116,22 +118,22 @@ describe 'sql with postgres', () ->
 	describe 'sql injections', () ->
 
 		it 'comment out', ->
-			[pgPopsiql, history] = newPgPopsiql()
+			[psql, history] = newPsql()
 			query = clients: _ {name: 1, "--\n drop client;--": 1}
-			await expect(pgPopsiql.sql query).rejects.toThrow 'invalid field'
+			await expect(psql query).rejects.toThrow 'invalid field'
 			deepEq [], history
 
 
 		it 'hex', ->
-			[pgPopsiql, history] = newPgPopsiql()
+			[psql, history] = newPsql()
 			query = clients: _ {name: 1, "rank0x2d0x2d0x20drop0x20client": 1}
-			await expect(pgPopsiql.sql query).rejects.toThrow 'invalid field'
+			await expect(psql query).rejects.toThrow 'invalid field'
 			deepEq [], history
 
 		it 'quote clause', ->
-			[pgPopsiql, history] = newPgPopsiql()
+			[psql, history] = newPsql()
 			query = clients: _ {name: 1, rank: {eq: "\'-- drop clients;--"}, archived: 1}
-			res = await pgPopsiql.sql query
+			res = await psql query
 			deepEq [], res
 			deepEq [
 				'SELECT id, "name", "rank", archived FROM client WHERE rank = $1', ["'-- drop clients;--"]
@@ -139,20 +141,20 @@ describe 'sql with postgres', () ->
 
 	describe 'write', ->
 		it 'upsert easy', ->
-			[pgPopsiql, history] = newPgPopsiql()
+			[psql, history] = newPsql()
 			delta = Client: {1: {id: '1', name: 'c1a'}}
-			await pgPopsiql.sql.write delta
+			await psql.write delta
 			deepEq ['INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
 WHERE client.id = $1;', ['1', 'c1a']], history
 
 		it 'upsert hard', ->
-			[pgPopsiql, history] = newPgPopsiql()
+			[psql, history] = newPsql()
 			delta =
 				Project: {1: {id: '1', name: 'p1a'}, 9: {name: 'p9', clientId: '1', userId: '9'}}
 				Client: {1: {id: '1', name: 'c1b'}, 2: {name: 'c2a'}, 9: {name: 'c9'}}
 				User: {9: {name: 'u9', email: 'u9@a.com'}}
 
-			await pgPopsiql.sql.write delta
+			await psql.write delta
 			expected = [
 				'INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
 WHERE client.id = $1;', ['1', 'c1b'],

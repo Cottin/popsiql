@@ -1,4 +1,4 @@
-import add from "ramda/es/add"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
+import add from "ramda/es/add"; import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
 import {mapI, mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
 
 _camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
@@ -9,7 +9,7 @@ defaultConfig =
 	keyFromDb: _snakeToCamel
 	runner: () -> throw new Error 'Must supply a runner'
 
-export default sql = (config_) ->
+export default popSql = (parse, config_) ->
 	{keyToDb, keyFromDb} = config = {...defaultConfig, ...config_}
 
 	# https://www.postgresql.org/docs/8.1/sql-keywords-appendix.html
@@ -57,7 +57,7 @@ export default sql = (config_) ->
 
 
 	read = (options, fullSpec, parent=null) ->
-		runner = options.runner || config.runner
+		runner = options.runner || config.runner
 		norm = if !parent then {} else parent.norm
 		fullRes = await PromiseProps $ fullSpec, mapO (spec, key) ->
 			if spec.relIdFromParent
@@ -119,13 +119,8 @@ export default sql = (config_) ->
 		return if !parent && options.result == 'both' then [fullRes, norm] else fullRes
 
 
-	fn = (query) ->
-		spec = config.parse query
-		res = await read {}, spec
-		return if $ spec, keys, length, equals 1 then $ res, values, head else res
-
-	fn.options = curry (options, query) ->
-		spec = config.parse query
+	fn = (query, options = {}) ->
+		spec = parse query
 		res = await read options, spec
 		if options.result == 'both'
 			[denorm, norm] = res
@@ -151,8 +146,8 @@ ON CONFLICT (id) DO UPDATE SET #{updateFields} WHERE #{getTable entity}.id = $1;
 			return res
 
 	fn.write = (delta, options = {}) ->
-		independent = difference keys(delta), config.parse.createOrder
-		createOrder = [...independent, ...config.parse.createOrder]
+		independent = difference keys(delta), parse.createOrder
+		createOrder = [...independent, ...parse.createOrder]
 
 		for entity in createOrder
 			for id, subDelta of delta[entity]

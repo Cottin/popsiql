@@ -1,9 +1,6 @@
 import difference from "ramda/es/difference"; import filter from "ramda/es/filter"; import has from "ramda/es/has"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import nth from "ramda/es/nth"; import omit from "ramda/es/omit"; import repeat from "ramda/es/repeat"; import replace from "ramda/es/replace"; import reverse from "ramda/es/reverse"; import test from "ramda/es/test"; import toLower from "ramda/es/toLower"; import toPairs from "ramda/es/toPairs"; import type from "ramda/es/type"; #auto_require: esramda
 import {mapO, $, sf0} from "ramda-extras" #auto_require: esramda-extras
 
-import ramda from './ramda'
-import sql from './sql'
-
 
 capitalize = (s) -> s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -31,6 +28,7 @@ calcCreateOrder = (model) ->
 
 	return resolved
 
+# Returns a parser based on the supplied model definition
 export default popsiql = (modelDef, config = {}) ->
 	model = $ modelDef, mapO (spec, k) ->
 		$ spec, mapO (entity, key) ->
@@ -102,8 +100,9 @@ export default popsiql = (modelDef, config = {}) ->
 	parse.createOrder = calcCreateOrder model
 	parse.deleteOrder = reverse parse.createOrder
 
+	parse.model = model
 
-	return {model, parse, ramda: ramda({parse, ...config.ramda}), sql: sql({parse, ...config.sql})}
+	return parse
 
 
 jsonRegEx = new RegExp '"([^"]+)":', 'g' # https://stackoverflow.com/a/11233515/416797

@@ -1,8 +1,8 @@
-import ascend from "ramda/es/ascend"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import descend from "ramda/es/descend"; import equals from "ramda/es/equals"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import prop from "ramda/es/prop"; import replace from "ramda/es/replace"; import sort from "ramda/es/sort"; import sortWith from "ramda/es/sortWith"; import test from "ramda/es/test"; import values from "ramda/es/values"; #auto_require: esramda
+import ascend from "ramda/es/ascend"; import both from "ramda/es/both"; import descend from "ramda/es/descend"; import equals from "ramda/es/equals"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import prop from "ramda/es/prop"; import replace from "ramda/es/replace"; import sort from "ramda/es/sort"; import sortWith from "ramda/es/sortWith"; import test from "ramda/es/test"; import values from "ramda/es/values"; #auto_require: esramda
 import {mapO, $} from "ramda-extras" #auto_require: esramda-extras
 
 
-export default ramda = (config) ->
+export default ramda = (parse, config) ->
 
 	read = (options, fullSpec, parent=null) ->
 		norm = if !parent then {} else parent.norm
@@ -45,15 +45,8 @@ export default ramda = (config) ->
 
 		return if !parent && options.result == :both then [fullRes, norm] else fullRes
 
-
-
-	fn = (query) ->
-		spec = config.parse query
-		res = read {}, spec
-		return if $ spec, keys, length, equals 1 then $ res, values, head else res
-
-	fn.options = curry (options, query) ->
-		spec = config.parse query
+	fn = (query, options = {}) ->
+		spec = parse query
 		res = read options, spec
 		if options.result == 'both'
 			[denorm, norm] = res
