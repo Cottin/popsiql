@@ -1,5 +1,5 @@
-import both from "ramda/es/both"; import curry from "ramda/es/curry"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import length from "ramda/es/length"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import where from "ramda/es/where"; #auto_require: esramda
-import {mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
+import add from "ramda/es/add"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
+import {mapI, mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
 
 _camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
 _snakeToCamel = (s) -> $ s, replace /_[a-z]/g, (s) -> toUpper s[1]
@@ -22,7 +22,8 @@ export default sql = (config_) ->
 		else if type(x) == 'String' then "'#{x.replace(/'/g, "''")}'"
 		else x
 
-	getFields = (allFields) -> $ allFields, map(keyToDb), map(esc), join ', '
+	getField = (field) -> $ field, keyToDb, esc
+	getFields = (allFields) -> $ allFields, map(getField), join ', '
 	getTable = (entity) -> toLower esc entity
 	getWhere = (where) ->
 		clauses = []
@@ -109,8 +110,11 @@ export default sql = (config_) ->
 			if spec.subs
 				await read options, spec.subs, {res, resById, norm}
 			
-			if spec.multiplicity == 'one' && length(res) == 1 then return res[0]
-			else return res
+			if spec.multiplicity == 'one'
+				if length(res) == 1 then return res[0]
+				else if length(res) == 0 then return null
+			
+			return res
 
 		return if !parent && options.result == 'both' then [fullRes, norm] else fullRes
 
@@ -118,12 +122,43 @@ export default sql = (config_) ->
 	fn = (query) ->
 		spec = config.parse query
 		res = await read {}, spec
-		return res
+		return if $ spec, keys, length, equals 1 then $ res, values, head else res
 
 	fn.options = curry (options, query) ->
 		spec = config.parse query
 		res = await read options, spec
-		return res
+		if options.result == 'both'
+			[denorm, norm] = res
+			return if $ spec, keys, length, equals 1 then [$(denorm, values, head), norm] else [denorm, norm]
+		else
+			return if $ spec, keys, length, equals 1 then $ res, values, head else res
+
+	write = (options, entity, id, delta) ->
+		runner = options.runner || config.runner
+
+		if delta == undefined then throw new Error 'deletes not yet supported'
+		else 
+			delta = {id, ...(omit(['id'], delta))}
+			fields = keys delta
+			params = values delta
+			dollars = $ params, mapI((___, i) -> "$#{i+1}"), join ', '
+			updateFields = $ fields, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
+			sql = "INSERT INTO #{getTable entity} (#{getFields fields}) VALUES (#{dollars})
+ON CONFLICT (id) DO UPDATE SET #{updateFields} WHERE #{getTable entity}.id = $1;"; # TODO: add where CID !!!!!
+
+			res = await runner sql, params
+
+			return res
+
+	fn.write = (delta, options = {}) ->
+		independent = difference keys(delta), config.parse.createOrder
+		createOrder = [...independent, ...config.parse.createOrder]
+
+		for entity in createOrder
+			for id, subDelta of delta[entity]
+				res = await write options, entity, id, subDelta
+
+		return 1
 
 	return fn
 

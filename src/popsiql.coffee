@@ -1,4 +1,4 @@
-import filter from "ramda/es/filter"; import has from "ramda/es/has"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import nth from "ramda/es/nth"; import omit from "ramda/es/omit"; import repeat from "ramda/es/repeat"; import replace from "ramda/es/replace"; import test from "ramda/es/test"; import toLower from "ramda/es/toLower"; import toPairs from "ramda/es/toPairs"; import type from "ramda/es/type"; #auto_require: esramda
+import difference from "ramda/es/difference"; import filter from "ramda/es/filter"; import has from "ramda/es/has"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import nth from "ramda/es/nth"; import omit from "ramda/es/omit"; import repeat from "ramda/es/repeat"; import replace from "ramda/es/replace"; import reverse from "ramda/es/reverse"; import test from "ramda/es/test"; import toLower from "ramda/es/toLower"; import toPairs from "ramda/es/toPairs"; import type from "ramda/es/type"; #auto_require: esramda
 import {mapO, $, sf0} from "ramda-extras" #auto_require: esramda-extras
 
 import ramda from './ramda'
@@ -12,6 +12,25 @@ fieldHex = /0x/
 validateField = (field) ->
 	if !test(fieldRegex, field) || test(fieldHex, field) then throw new Error "invalid field #{field}"
 
+calcCreateOrder = (model) ->
+	ks = keys model
+	resolved = []
+
+	while true
+		for k in ks
+
+			shouldResolve = true
+			for key, relDef of model[k]
+				if relDef.rel && !includes relDef.entity, resolved
+					shouldResolve = false 
+					break
+			if shouldResolve then resolved.push k
+
+		ks = difference ks, resolved
+		if isEmpty ks then break
+
+	return resolved
+
 export default popsiql = (modelDef, config = {}) ->
 	model = $ modelDef, mapO (spec, k) ->
 		$ spec, mapO (entity, key) ->
@@ -20,6 +39,7 @@ export default popsiql = (modelDef, config = {}) ->
 			else ret.theirRel = "#{toLower k}Id"
 			return ret
 
+	
 	extractEntityAndMultiplicity = (key, parentEntity) ->
 		entity =
 			if parentEntity then model[parentEntity][key].entity
@@ -78,6 +98,9 @@ export default popsiql = (modelDef, config = {}) ->
 					Object.assign ret.subs, subRes
 
 			return ret
+
+	parse.createOrder = calcCreateOrder model
+	parse.deleteOrder = reverse parse.createOrder
 
 
 	return {model, parse, ramda: ramda({parse, ...config.ramda}), sql: sql({parse, ...config.sql})}

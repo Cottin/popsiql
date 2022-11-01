@@ -1,4 +1,4 @@
-import ascend from "ramda/es/ascend"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import descend from "ramda/es/descend"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import includes from "ramda/es/includes"; import length from "ramda/es/length"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import prop from "ramda/es/prop"; import replace from "ramda/es/replace"; import sort from "ramda/es/sort"; import sortWith from "ramda/es/sortWith"; import test from "ramda/es/test"; #auto_require: esramda
+import ascend from "ramda/es/ascend"; import both from "ramda/es/both"; import curry from "ramda/es/curry"; import descend from "ramda/es/descend"; import equals from "ramda/es/equals"; import gt from "ramda/es/gt"; import gte from "ramda/es/gte"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import lt from "ramda/es/lt"; import lte from "ramda/es/lte"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import prop from "ramda/es/prop"; import replace from "ramda/es/replace"; import sort from "ramda/es/sort"; import sortWith from "ramda/es/sortWith"; import test from "ramda/es/test"; import values from "ramda/es/values"; #auto_require: esramda
 import {mapO, $} from "ramda-extras" #auto_require: esramda-extras
 
 
@@ -49,11 +49,17 @@ export default ramda = (config) ->
 
 	fn = (query) ->
 		spec = config.parse query
-		return read {}, spec
+		res = read {}, spec
+		return if $ spec, keys, length, equals 1 then $ res, values, head else res
 
 	fn.options = curry (options, query) ->
 		spec = config.parse query
-		return read options, spec
+		res = read options, spec
+		if options.result == 'both'
+			[denorm, norm] = res
+			return if $ spec, keys, length, equals 1 then [$(denorm, values, head), norm] else [denorm, norm]
+		else
+			return if $ spec, keys, length, equals 1 then $ res, values, head else res
 
 	return fn
 	
