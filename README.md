@@ -21,13 +21,13 @@ Note that examples below uses coffeescript, keywordCoffeeLoader (:key), and `_ =
 
 
 		####### SIMPLE QUERY
-		query = {clients: _ {:name, :rank, archived: {eq: false}}}
+		query = clients: _ {:name, :rank, archived: {eq: false}}
 
 		pop.sql query
 		# SELECT name, "rank", archived FROM client WHERE archived = false
 
 		pop.ramda query
-		# {clients: [{id: 1, name: 'Client1', rank: 'a'}, {id: 2, name: 'Client 2', rank: 'b'}]}
+		# [{id: 1, name: 'Client1', rank: 'a'}, {id: 2, name: 'Client 2', rank: 'b'}]
 
 
 
@@ -36,11 +36,13 @@ Note that examples below uses coffeescript, keywordCoffeeLoader (:key), and `_ =
 			clients: _ {:name, archived: {eq: false}},
 				projects: _ {:name, rate: {gt: 100}},
 					owner: _ {:name}
+			user: _ {id: {eq: 99}, :name}
 					
 		pop.sql query
 		# SELECT id, "name", archived FROM client WHERE archived = $1
 		# SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > $1 AND client_id = ANY($2)
 		# SELECT id, "name" FROM "user" WHERE id = ANY($1)
+		# SELECT id, "name" FROM "user" WHERE id = $1
 
 		pop.ramda query
 		#	clients: [
@@ -55,3 +57,4 @@ Note that examples below uses coffeescript, keywordCoffeeLoader (:key), and `_ =
 		#				owner: {id: 2, name: 'User 2'}}
 		#		]}
 		#	]
+		# user: {id: 99, name: 'John Doe'}

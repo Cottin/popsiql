@@ -41,13 +41,14 @@ describe 'parse', () ->
 				fields: [:name, :nickname]
 				allFields: [:id, :name, :nickname]
 				sort: [{field: 'nickname', direction: 'DESC'}, {field: 'id', direction: 'ASC'}]
+				where: {cid: {eq: '1'}}
 			clients:
 				entity: 'Client'
 				key: 'clients'
 				multiplicity: 'many'
 				fields: ['name', 'archived']
 				allFields: ['id', 'name', 'archived']
-				where: {archived: {eq: false}}
+				where: {archived: {eq: false}, cid: {eq: '1'}}
 				subs:
 					projects:
 						entity: 'Project'
@@ -55,7 +56,7 @@ describe 'parse', () ->
 						multiplicity: 'many'
 						fields: ['name', 'rate']
 						allFields: ['id', 'name', 'rate', 'clientId', 'userId']
-						where: {rate: {gt: 100}}
+						where: {rate: {gt: 100}, cid: {eq: '1'}}
 						relParentId: 'clientId'
 						subs:
 							owner:
@@ -65,15 +66,21 @@ describe 'parse', () ->
 								fields: ['name']
 								allFields: ['id', 'name']
 								relIdFromParent: 'userId'
+								where: {cid: {eq: '1'}}
 			user:
 				entity: 'User'
 				key: 'user'
 				multiplicity: 'one'
 				fields: [:id, :name, :email]
 				allFields: [:id, :name, :email]
-				where: {id: {eq: '1'}}
+				where: {id: {eq: '1'}, cid: {eq: '1'}}
 
-		deepEq expected, myParse query1
+		safeGuard = (subQuery, ret) ->
+			ret.where ?= {}
+			if subQuery.entity == 'Customer' then ret.where.id = {eq: '1'}
+			else ret.where.cid = {eq: '1'}
+
+		deepEq expected, myParse query1, safeGuard
 
 	it 'helpful if bad body', ->
 		throws 'body not array', -> myParse {clients: {name: 1}}

@@ -1,5 +1,5 @@
 import both from "ramda/es/both"; import sort from "ramda/es/sort"; #auto_require: esramda
-import {change} from "ramda-extras" #auto_require: esramda-extras
+import {} from "ramda-extras" #auto_require: esramda-extras
 _ = (...xs) -> xs
 
 import {deepEq, eq, throws, defuse} from 'comon/shared/testUtils'
@@ -11,8 +11,16 @@ import popRamda from './ramda'
 
 rsql = popRamda parse1, {
 	getData: () -> data
-	changeData: (delta) -> data = change delta, data # TODO!
 }
+
+
+# newRsql = () ->
+# 	myData = clone data
+# 	rasql = popRamda parse1, {
+# 		getData: () -> myData
+# 		changeData: (delta) -> myData = change delta, myData
+# 	}
+# 	return [rasql, myData]
 
 
 describe 'ramda', () ->
@@ -34,9 +42,13 @@ describe 'ramda', () ->
 		deepEq expected1, res
 		deepEq expected1Norm, normRes
 
-	it.skip 'write easy', ->
-		# TODO
-		rsql.write write1
-		console.log data 
-		eq 2, 1
+	# describe 'write', ->
+	# 	# TODO
+
+	# 	it.only 'upsert easy', ->
+	# 		[rasql, myData] = newRsql()
+	# 		delta = Client: {1: {id: '1', name: 'c1a'}}
+	# 		rasql.write delta
+	# 		expected = {id: '1', name: 'c1a'}
+	# 		deepEq expected, myData.Client['1']
 

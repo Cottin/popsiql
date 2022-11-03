@@ -1,4 +1,4 @@
-import add from "ramda/es/add"; import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
+import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import has from "ramda/es/has"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
 import {mapI, mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
 
 _camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
@@ -61,7 +61,7 @@ export default popSql = (parse, config_) ->
 		norm = if !parent then {} else parent.norm
 		fullRes = await PromiseProps $ fullSpec, mapO (spec, key) ->
 			if spec.relIdFromParent
-				Where = {id: {in: $ parent.res, pluck spec.relIdFromParent}}
+				Where = {id: {in: $ parent.res, pluck spec.relIdFromParent}, ...(spec.where || {})}
 				params = []
 				[whereClause, whereParams] = getWhere Where
 				params.push ...whereParams
@@ -120,7 +120,8 @@ export default popSql = (parse, config_) ->
 
 
 	fn = (query, options = {}) ->
-		spec = parse query
+		safeGuard = options.safeGuard || config.safeGuard
+		spec = parse query, safeGuard
 		res = await read options, spec
 		if options.result == 'both'
 			[denorm, norm] = res
@@ -130,19 +131,29 @@ export default popSql = (parse, config_) ->
 
 	write = (options, entity, id, delta) ->
 		runner = options.runner || config.runner
+		safeGuard = options.safeGuard || config.safeGuard
+
+		entityTable = getTable entity
 
 		if delta == undefined then throw new Error 'deletes not yet supported'
 		else 
-			delta = {id, ...(omit(['id'], delta))}
-			fields = keys delta
-			params = values delta
-			dollars = $ params, mapI((___, i) -> "$#{i+1}"), join ', '
-			updateFields = $ fields, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
-			sql = "INSERT INTO #{getTable entity} (#{getFields fields}) VALUES (#{dollars})
-ON CONFLICT (id) DO UPDATE SET #{updateFields} WHERE #{getTable entity}.id = $1;"; # TODO: add where CID !!!!!
+			if !has id, delta
+			else 
+			if !safeGuard
+				delta = {id, ...(omit(['id'], delta))}
+				fields = keys delta
+				params = values delta
+				dollars = $ params, mapI((___, i) -> "$#{i+1}"), join ', '
+
+				sets = $ fields, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
+
+				sql = "INSERT INTO #{entityTable} (#{getFields fields}) VALUES (#{dollars})
+	ON CONFLICT (id) DO UPDATE SET #{sets} WHERE #{entityTable}.id = $1;";
+			else
+				[sql, params] = safeGuard {delta, entity, id, entityTable, getFields, getField}
+
 
 			res = await runner sql, params
-
 			return res
 
 	fn.write = (delta, options = {}) ->
@@ -158,6 +169,26 @@ ON CONFLICT (id) DO UPDATE SET #{updateFields} WHERE #{getTable entity}.id = $1;
 	return fn
 
 	
+popSql.presetSafeGuardCCU = ({cid, createdAt, updatedAt}) ->
+
+	return ({delta, entity, id, entityTable, getFields, getField}) ->
+		if delta.cid && delta.cid != cid then throw new Error 'trying to edit others cust id'
+		if has('createdAt', delta) || has('updatedAt', delta) then throw new Error 'invalid delta'
+		delta = {id, ...(omit(['id'], delta))} # ensure id and id is first key
+		paramsDelta = {...delta, updatedAt, createdAt, cid}
+		cidParamNum = $ paramsDelta, values, length
+		params = values paramsDelta
+
+		insertFields = $ paramsDelta, keys, getFields
+		insertDollars = $ paramsDelta, keys, mapI((___, i) -> "$#{i+1}"), join ', '
+
+		paramsDelta = {...delta, updatedAt}
+		sets = $ paramsDelta, keys, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
+
+		sql = "INSERT INTO #{entityTable} (#{insertFields}) VALUES (#{insertDollars})
+					ON CONFLICT (id) DO UPDATE SET #{sets} 
+					WHERE #{entityTable}.id = $1 AND #{entityTable}.cid = $#{cidParamNum};";
+		return [sql, params]
 
 
 

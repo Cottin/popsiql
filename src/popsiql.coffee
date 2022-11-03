@@ -45,7 +45,7 @@ export default popsiql = (modelDef, config = {}) ->
 		multiplicity = if test /s$/, key then 'many' else 'one'
 		return {entity, multiplicity}
 
-	parse = (query, parentEntity=null) ->
+	parse = (query, safeGuard=null, parentEntity=null) ->
 		return $ query, mapO (fieldsAndChildren, key) ->
 			if type(fieldsAndChildren) != 'Array' then throw new Error "body not array for #{key}"
 			{entity, multiplicity} = extractEntityAndMultiplicity key, parentEntity
@@ -92,8 +92,11 @@ export default popsiql = (modelDef, config = {}) ->
 						# We are many in 1-to-many to our child
 						allFields.push model[entity][k].rel
 
-					subRes = parse {[k]: v}, entity
+					subRes = parse {[k]: v}, safeGuard, entity
 					Object.assign ret.subs, subRes
+
+
+			if safeGuard then safeGuard query, ret
 
 			return ret
 

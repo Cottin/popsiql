@@ -46,13 +46,17 @@ describe 'sql with postgres', () ->
 	beforeAll () ->
 		await client.connect()
 
+		await client.query('DROP TABLE IF EXISTS customer')
 		await client.query('DROP TABLE IF EXISTS client')
 		await client.query('DROP TABLE IF EXISTS project')
 		await client.query('DROP TABLE IF EXISTS "user"')
 
-		await client.query('CREATE TABLE client (id TEXT, name TEXT, archived BOOLEAN, rank TEXT, PRIMARY KEY (id))')
-		await client.query('CREATE TABLE project (id TEXT, name TEXT, rate DECIMAL(10), client_id TEXT, user_id TEXT, PRIMARY KEY (id))')
-		await client.query('CREATE TABLE "user" (id TEXT, name TEXT, email TEXT, nickname TEXT, PRIMARY KEY (id))')
+		ccu = 'cid TEXT, created_at timestamp with time zone, updated_at timestamp with time zone'
+
+		await client.query("CREATE TABLE customer (id TEXT, name TEXT, PRIMARY KEY (id))")
+		await client.query("CREATE TABLE client (id TEXT, name TEXT, archived BOOLEAN, rank TEXT, #{ccu}, PRIMARY KEY (id))")
+		await client.query("CREATE TABLE project (id TEXT, name TEXT, rate DECIMAL(10), client_id TEXT, user_id TEXT, #{ccu}, PRIMARY KEY (id))")
+		await client.query("CREATE TABLE \"user\" (id TEXT, name TEXT, email TEXT, nickname TEXT, #{ccu}, PRIMARY KEY (id))")
 
 
 		for entity, os of data
@@ -104,15 +108,22 @@ describe 'sql with postgres', () ->
 
 	it 'complex', () ->
 		[psql, history] = newPsql()
-		[res, normRes] = await defuse psql query1, {result: 'both'}
+		safeGuard = (subQuery, ret) ->
+			ret.where ?= {}
+			if subQuery.entity == 'Customer'
+				ret.where.id = {eq: '1'}
+			else ret.where.cid = {eq: '1'}
+
+		[res, normRes] = await defuse psql query1, {result: 'both', safeGuard}
 		deepEq expected1, res
 		deepEq expected1Norm, normRes
 		deepEq [
-			'SELECT id, "name", nickname FROM "user" ORDER BY nickname DESC, id', [],
-			'SELECT id, "name", archived FROM client WHERE archived = $1', [false],
-			'SELECT id, "name", email FROM "user" WHERE id = $1', ['1'],
-			'SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > $1 AND client_id = ANY($2)', [100, ['1', '4']]
-			'SELECT id, "name" FROM "user" WHERE id = ANY($1)', [['1', '2']],
+			'SELECT id, "name", nickname FROM "user" WHERE cid = $1 ORDER BY nickname DESC, id', ['1'],
+			'SELECT id, "name", archived FROM client WHERE archived = $1 AND cid = $2', [false, '1'],
+			'SELECT id, "name", email FROM "user" WHERE id = $1 AND cid = $2', ['1', '1'],
+			'SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > \
+$1 AND cid = $2 AND client_id = ANY($3)', [100, '1', ['1', '4']]
+			'SELECT id, "name" FROM "user" WHERE id = ANY($1) AND cid = $2', [['1', '2'], '1'],
 		], history
 
 	describe 'sql injections', () ->
@@ -154,20 +165,41 @@ WHERE client.id = $1;', ['1', 'c1a']], history
 				Client: {1: {id: '1', name: 'c1b'}, 2: {name: 'c2a'}, 9: {name: 'c9'}}
 				User: {9: {name: 'u9', email: 'u9@a.com'}}
 
-			await psql.write delta
+			createdAt = updatedAt = new Date()
+			safeGuard = ({delta, entity, id, entityTable, getFields, getField}) ->
+				if entity == 'Customer'
+					if id != '1' then throw new Error 'can only write to own customer'
+				else 
+					preset = popSql.presetSafeGuardCCU({cid: '1', createdAt, updatedAt})
+					return preset({delta, entity, id, entityTable, getFields, getField})
+
+
+			await psql.write delta, {safeGuard}
 			expected = [
-				'INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
-WHERE client.id = $1;', ['1', 'c1b'],
-				'INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
-WHERE client.id = $1;', ['2', 'c2a'],
-				'INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
-WHERE client.id = $1;', ['9', 'c9'],
-				'INSERT INTO "user" (id, "name", email) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET \
-"name" = $2, email = $3 WHERE "user".id = $1;', ['9', 'u9', 'u9@a.com'],
-				'INSERT INTO project (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET \
-"name" = $2 WHERE project.id = $1;', ['1', 'p1a'],
-				'INSERT INTO project (id, "name", client_id, user_id) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET \
-"name" = $2, client_id = $3, user_id = $4 WHERE project.id = $1;', ['9', 'p9', '1', '9'],
+				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
+WHERE client.id = $1 AND client.cid = $5;', ['1', 'c1b', updatedAt, createdAt, '1'],
+
+				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
+WHERE client.id = $1 AND client.cid = $5;', ['2', 'c2a', updatedAt, createdAt, '1'],
+
+				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
+WHERE client.id = $1 AND client.cid = $5;', ['9', 'c9', updatedAt, createdAt, '1'],
+
+				'INSERT INTO "user" (id, "name", email, updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5, $6) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, email = $3, updated_at = $4 \
+WHERE "user".id = $1 AND "user".cid = $6;', ['9', 'u9', 'u9@a.com', updatedAt, createdAt, '1'],
+
+				'INSERT INTO project (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
+WHERE project.id = $1 AND project.cid = $5;', ['1', 'p1a', updatedAt, createdAt, '1'],
+
+				'INSERT INTO project (id, "name", client_id, user_id, updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5, $6, $7) \
+ON CONFLICT (id) DO UPDATE SET "name" = $2, client_id = $3, user_id = $4, updated_at = $5 \
+WHERE project.id = $1 AND project.cid = $7;', ['9', 'p9', '1', '9', updatedAt, createdAt, '1'],
+
 			]
 			deepEq expected, history
 
