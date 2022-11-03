@@ -1,4 +1,4 @@
-import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import has from "ramda/es/has"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import omit from "ramda/es/omit"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import values from "ramda/es/values"; import where from "ramda/es/where"; import without from "ramda/es/without"; #auto_require: esramda
+import append from "ramda/es/append"; import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import has from "ramda/es/has"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import insert from "ramda/es/insert"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import update from "ramda/es/update"; import values from "ramda/es/values"; import where from "ramda/es/where"; #auto_require: esramda
 import {mapI, mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
 
 _camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
@@ -135,26 +135,31 @@ export default popSql = (parse, config_) ->
 
 		entityTable = getTable entity
 
-		if delta == undefined then throw new Error 'deletes not yet supported'
+		if isNil delta
+			params = [id]
+			if safeGuard
+				[safeParams, safeWhere] = safeGuard {op: 'delete', entity, params}
+				params.push ...safeParams
+			sql = "DELETE FROM #{entityTable} WHERE id = $1#{safeWhere || ''};"
+		else if has 'id', delta
+			safeDelta = if safeGuard then safeGuard {op: 'insert', entity, delta} else delta
+			fields = $ safeDelta, keys, getFields
+			params = $ safeDelta, values
+			dollars = $ params, mapI((___, i) -> "$#{i+1}"), join ', '
+			sql = "INSERT INTO #{entityTable} (#{fields}) VALUES (#{dollars});"
 		else 
-			if !has id, delta
-			else 
-			if !safeGuard
-				delta = {id, ...(omit(['id'], delta))}
-				fields = keys delta
-				params = values delta
-				dollars = $ params, mapI((___, i) -> "$#{i+1}"), join ', '
+			if safeGuard
+				[safeDelta, safeParams, safeWhere] = safeGuard {op: 'update', entity, delta, params}
+				delta = safeDelta
 
-				sets = $ fields, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
+			sets = $ delta, keys, mapI((k, i) -> "#{getField k} = $#{i+1}"), join ', '
+			params = $ delta, values, append id
+			idParamNum = params.length
+			if safeParams then params.push ...safeParams
+			sql = "UPDATE #{entityTable} SET #{sets} WHERE id = $#{idParamNum}#{safeWhere || ''};"
 
-				sql = "INSERT INTO #{entityTable} (#{getFields fields}) VALUES (#{dollars})
-	ON CONFLICT (id) DO UPDATE SET #{sets} WHERE #{entityTable}.id = $1;";
-			else
-				[sql, params] = safeGuard {delta, entity, id, entityTable, getFields, getField}
-
-
-			res = await runner sql, params
-			return res
+		res = await runner sql, params
+		return res
 
 	fn.write = (delta, options = {}) ->
 		independent = difference keys(delta), parse.createOrder
@@ -168,27 +173,6 @@ export default popSql = (parse, config_) ->
 
 	return fn
 
-	
-popSql.presetSafeGuardCCU = ({cid, createdAt, updatedAt}) ->
-
-	return ({delta, entity, id, entityTable, getFields, getField}) ->
-		if delta.cid && delta.cid != cid then throw new Error 'trying to edit others cust id'
-		if has('createdAt', delta) || has('updatedAt', delta) then throw new Error 'invalid delta'
-		delta = {id, ...(omit(['id'], delta))} # ensure id and id is first key
-		paramsDelta = {...delta, updatedAt, createdAt, cid}
-		cidParamNum = $ paramsDelta, values, length
-		params = values paramsDelta
-
-		insertFields = $ paramsDelta, keys, getFields
-		insertDollars = $ paramsDelta, keys, mapI((___, i) -> "$#{i+1}"), join ', '
-
-		paramsDelta = {...delta, updatedAt}
-		sets = $ paramsDelta, keys, without(['id']), mapI((field, i) -> "#{getField field} = $#{i+2}"), join ', '
-
-		sql = "INSERT INTO #{entityTable} (#{insertFields}) VALUES (#{insertDollars})
-					ON CONFLICT (id) DO UPDATE SET #{sets} 
-					WHERE #{entityTable}.id = $1 AND #{entityTable}.cid = $#{cidParamNum};";
-		return [sql, params]
 
 
 

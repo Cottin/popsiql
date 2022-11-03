@@ -1,4 +1,4 @@
-import both from "ramda/es/both"; import drop from "ramda/es/drop"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import map from "ramda/es/map"; import project from "ramda/es/project"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import type from "ramda/es/type"; import values from "ramda/es/values"; #auto_require: esramda
+import both from "ramda/es/both"; import drop from "ramda/es/drop"; import insert from "ramda/es/insert"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import project from "ramda/es/project"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import type from "ramda/es/type"; import update from "ramda/es/update"; import values from "ramda/es/values"; #auto_require: esramda
 import {$} from "ramda-extras" #auto_require: esramda-extras
 _ = (...xs) -> xs
 
@@ -151,55 +151,42 @@ $1 AND cid = $2 AND client_id = ANY($3)', [100, '1', ['1', '4']]
 			], history
 
 	describe 'write', ->
-		it 'upsert easy', ->
+		it 'insert easy', ->
 			[psql, history] = newPsql()
-			delta = Client: {1: {id: '1', name: 'c1a'}}
+			delta = Client: {8: {id: '8', name: 'c8'}}
 			await psql.write delta
-			deepEq ['INSERT INTO client (id, "name") VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET "name" = $2 \
-WHERE client.id = $1;', ['1', 'c1a']], history
+			deepEq ['INSERT INTO client (id, "name") VALUES ($1, $2);', ['8', 'c8']], history
 
-		it 'upsert hard', ->
+		it 'update easy', ->
+			[psql, history] = newPsql()
+			delta = Client: {1: {name: 'c1a'}}
+			await psql.write delta
+			deepEq ['UPDATE client SET "name" = $1 WHERE id = $2;', ['c1a', '1']], history
+
+		it 'complex', ->
 			[psql, history] = newPsql()
 			delta =
-				Project: {1: {id: '1', name: 'p1a'}, 9: {name: 'p9', clientId: '1', userId: '9'}}
-				Client: {1: {id: '1', name: 'c1b'}, 2: {name: 'c2a'}, 9: {name: 'c9'}}
-				User: {9: {name: 'u9', email: 'u9@a.com'}}
+				Project: {1: {name: 'p1a'}, 9: {id: '9', name: 'p9', clientId: '1', userId: '9'}}
+				Client: {1: {name: 'c1b'}, 2: {name: 'c2a'}, 9: {id: '9', name: 'c9'}, 4: undefined}
+				User: {9: {id: '9', name: 'u9', email: 'u9@a.com'}}
 
-			createdAt = updatedAt = new Date()
-			safeGuard = ({delta, entity, id, entityTable, getFields, getField}) ->
-				if entity == 'Customer'
-					if id != '1' then throw new Error 'can only write to own customer'
-				else 
-					preset = popSql.presetSafeGuardCCU({cid: '1', createdAt, updatedAt})
-					return preset({delta, entity, id, entityTable, getFields, getField})
+			safeGuard = ({op, delta}) ->
+				if op == 'insert' then {...delta, cid: '1'}
+				else if op == 'update' then [delta, ['1'], " AND cid = $#{$(delta, keys, length) + 2}"]
+				else if op == 'delete' then [['1'], " AND cid = $2"]
+
+
 
 
 			await psql.write delta, {safeGuard}
 			expected = [
-				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
-WHERE client.id = $1 AND client.cid = $5;', ['1', 'c1b', updatedAt, createdAt, '1'],
-
-				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
-WHERE client.id = $1 AND client.cid = $5;', ['2', 'c2a', updatedAt, createdAt, '1'],
-
-				'INSERT INTO client (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
-WHERE client.id = $1 AND client.cid = $5;', ['9', 'c9', updatedAt, createdAt, '1'],
-
-				'INSERT INTO "user" (id, "name", email, updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5, $6) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, email = $3, updated_at = $4 \
-WHERE "user".id = $1 AND "user".cid = $6;', ['9', 'u9', 'u9@a.com', updatedAt, createdAt, '1'],
-
-				'INSERT INTO project (id, "name", updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, updated_at = $3 \
-WHERE project.id = $1 AND project.cid = $5;', ['1', 'p1a', updatedAt, createdAt, '1'],
-
-				'INSERT INTO project (id, "name", client_id, user_id, updated_at, created_at, cid) VALUES ($1, $2, $3, $4, $5, $6, $7) \
-ON CONFLICT (id) DO UPDATE SET "name" = $2, client_id = $3, user_id = $4, updated_at = $5 \
-WHERE project.id = $1 AND project.cid = $7;', ['9', 'p9', '1', '9', updatedAt, createdAt, '1'],
-
+				'UPDATE client SET "name" = $1 WHERE id = $2 AND cid = $3;', ['c1b', '1', '1'],
+				'UPDATE client SET "name" = $1 WHERE id = $2 AND cid = $3;', ['c2a', '2', '1'],
+				'DELETE FROM client WHERE id = $1 AND cid = $2;', ['4', '1'],
+				'INSERT INTO client (id, "name", cid) VALUES ($1, $2, $3);', ['9', 'c9', '1'],
+				'INSERT INTO \"user\" (id, "name", email, cid) VALUES ($1, $2, $3, $4);', ['9', 'u9', 'u9@a.com', '1'],
+				'UPDATE project SET "name" = $1 WHERE id = $2 AND cid = $3;', ['p1a', '1', '1'],
+				'INSERT INTO project (id, "name", client_id, user_id, cid) VALUES ($1, $2, $3, $4, $5);', ['9', 'p9', '1', '9', '1'],
 			]
 			deepEq expected, history
 
