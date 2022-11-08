@@ -64,4 +64,4 @@ Note that examples below uses coffeescript, keywordCoffeeLoader (:key), and `_ =
 ## Architecture
 *(Click the image to see the diagram in full screen.)*
 
-![Diagram](diagram.svg)
+![Diagram](diagram.png)
