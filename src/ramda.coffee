@@ -31,8 +31,12 @@ export default ramda = (parse, config) ->
 							norm[spec.entity][r.id] = {...norm[spec.entity][r.id], ...r}
 						else norm[spec.entity][r.id] = {...r}
 
+					if spec.subs
+						for ___, sub of spec.subs
+							if sub.multiplicity == 'many' then r[sub.key] = []
+							else r[sub.key] = null
+
 					if spec.relParentId
-						parent.resById[r[spec.relParentId]][key] ?= []
 						parent.resById[r[spec.relParentId]][key].push r
 
 			res = if spec.sort then sortWith sorter(spec.sort), res_ else res_

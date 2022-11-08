@@ -36,6 +36,17 @@ describe 'ramda', () ->
 		expected = [{id: '4', rank: 'd'}, {id: '2', rank: 'c'}, {id: '3', rank: 'c'}, {id: '1', rank: 'a'}]
 		deepEq expected, rsql clients: _ {:rank, _sort: [{rank: 'DESC'}, 'id']}
 
+	it 'easy missing', () ->
+		expected = [
+			{id: '2', archived: true, projects: [{id: '4', name: 'p4', clientId: '2'}]},
+			{id: '3', archived: true, projects: []}
+		]
+		query =
+			clients: _ {archived: {eq: true}},
+				projects: _ {:name}
+
+		deepEq expected, rsql query
+
 	it 'complex', () ->
 		[res, normRes] = rsql query1, {result: 'both'}
 

@@ -58,3 +58,10 @@ Note that examples below uses coffeescript, keywordCoffeeLoader (:key), and `_ =
 		#		]}
 		#	]
 		# user: {id: 99, name: 'John Doe'}
+
+
+
+## Architecture
+*(Click the image to see the diagram in full screen.)*
+
+![Diagram](diagram.svg)
