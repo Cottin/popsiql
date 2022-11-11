@@ -36,6 +36,14 @@ export query1 =
 			owner: _ {name: 1}
 	user: _ {id: {eq: '1'}, :name, :email}
 
+# This could work but isn't that nice and can't be stringified easily to send to the server
+query1_experimental =
+	users: ({name, nickname, _sort = [{nickname: 'DESC'}], id}) ->
+	clients: ({name, archived = {eq: false}}) ->
+		projects: ({name, rate = {gt: 100}}) ->
+			owner: ({name}) ->
+	user: ({id = '1', name, email}) ->
+
 export expected1 = null
 (() ->
 	client1 = omit ['rank', 'cid'], data.Client[1]
