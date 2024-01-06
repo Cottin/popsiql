@@ -9,17 +9,32 @@ import {data, model1, query1, expected1, expected1Norm, write1} from './test_moc
 import popsiql from './popsiql'
 import {Client, types} from 'pg'
 
-myParse = popsiql model1
+# myParse = popsiql model1
 
 
+# filter in npm test by popsiql.test
 describe 'popsiql', () ->
-	it 'constructor', () ->
+	it 'full', () ->
 		expected =
 			Client: {projects: {entity: 'Project', theirRel: 'clientId'}}
 			Project: {client: {entity: 'Client', rel: 'clientId'}, owner: {entity: 'User', rel: 'userId'}}
 			User: {projects: {entity: 'Project', theirRel: 'userId'}}
 		res = popsiql(model1, {ramda: {getData: () -> data}})
 		deepEq expected, res.model
+
+	it 'missing entity', () ->
+		throws 'is not declared', -> popsiql {Client: {projects: 'Project'}}
+
+	it.only 'many-to-one and one-to-many', () ->
+		model =
+			Client:
+				projects: {entity: 'Project', key: 'Project.clientId'}
+			Project:
+				client: {entity: 'Client', key: 'Project.clientId'}
+
+		res = popsiql.newF model, {}
+		deepEq {}, res.model
+
 
 describe 'utils', () ->
 	it 'queryToString', () ->

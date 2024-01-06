@@ -5,16 +5,43 @@ import {mapO, $} from "ramda-extras" #auto_require: esramda-extras
 export default ramda = (parse, config) ->
 
 	read = (options, fullSpec, parent=null) ->
+		# console.log 'fullSpec', fullSpec
+		# console.log 'parent', parent
 		norm = if !parent then {} else parent.norm
 		fullRes = $ fullSpec, mapO (spec, key) ->
 			if spec.relIdFromParent
+				# console.log 'a1_1' 
+				# console.log 'parent.res', parent.res
 				for r in parent.res
-					r[key] = pick spec.allFields, config.getData()[spec.entity][r[spec.relIdFromParent]]
-				return
+					# console.log 'a1_2' 
+					# console.log 'spec', spec
+					# console.log 'r', r 
+					# console.log config.getData()[spec.entity]
+					# console.log r[spec.relIdFromParent]
+					# console.log config.getData()[spec.entity][r[spec.relIdFromParent]]
+					fullData = config.getData()[spec.entity][r[spec.relIdFromParent]]
+					if !fullData then r[key] = null
+					else r[key] = pick spec.allFields, fullData
+					# console.log 'fullData', fullData
+					# console.log 'r[key]', r[key]
+					# try
+					# 	r[key] = pick spec.allFields, config.getData()[spec.entity][r[spec.relIdFromParent]]
+					# catch err
+					# 	console.error err 
+					# console.log r[key]
 
+
+				# TOGO: Premature exiting. Add data that has both spec.relIdFromParent and spec.subs
+
+
+				# console.log 'return 1'
+				# return
+
+			# console.log 'a1_3' 
 			resById = {}
 			Where = {...spec.where}
 
+			# console.log 'a2' 
 			if spec.relParentId
 				Where[spec.relParentId] = {in: pluck 'id', parent.res}
 
@@ -24,6 +51,7 @@ export default ramda = (parse, config) ->
 					r = pick spec.allFields, o
 					res_.push r
 					resById[r.id] = r
+					# console.log 'a3' 
 
 					if options.result == :both
 						norm[spec.entity] ?= {}
@@ -39,19 +67,29 @@ export default ramda = (parse, config) ->
 					if spec.relParentId
 						parent.resById[r[spec.relParentId]][key].push r
 
+			# console.log 'a4' 
 			res = if spec.sort then sortWith sorter(spec.sort), res_ else res_
 
 			if spec.subs
 				read options, spec.subs, {res, resById, norm}
+			# console.log 'a5' 
 
-			if spec.multiplicity == 'one' && length(res) == 1 then return res[0]
-			else return res
+			if spec.multiplicity == 'one' && length(res) == 1
+				# console.log 'return 2';
+				return res[0]
+			else
+				# console.log 'return 3';
+				return res
 
 		return if !parent && options.result == :both then [fullRes, norm] else fullRes
 
 	fn = (query, options = {}) ->
 		spec = parse query
-		res = read options, spec
+		try	
+			res = read options, spec
+		catch err
+			throw err # for some reason error are swallowed in the read code, but re-throwing them here seems to work
+
 		if options.result == 'both'
 			[denorm, norm] = res
 			return if $ spec, keys, length, equals 1 then [$(denorm, values, head), norm] else [denorm, norm]

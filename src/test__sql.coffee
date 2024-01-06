@@ -123,7 +123,7 @@ describe 'sql with postgres', () ->
 			'SELECT id, "name", email FROM "user" WHERE id = $1 AND cid = $2', ['1', '1'],
 			'SELECT id, "name", rate, client_id, user_id FROM project WHERE rate > \
 $1 AND cid = $2 AND client_id = ANY($3)', [100, '1', ['1', '4']]
-			'SELECT id, "name" FROM "user" WHERE id = ANY($1) AND cid = $2', [['1', '2'], '1'],
+			'SELECT id, "name" FROM "user" WHERE id = ANY($1) AND cid = $2', [['1'], '1'],
 		], history
 
 	describe 'sql injections', () ->

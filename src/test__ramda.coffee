@@ -6,12 +6,13 @@ import {deepEq, eq, throws, defuse} from 'comon/shared/testUtils'
 
 import {data, model1, query1, expected1, expected1Norm, write1, parse1} from './test_mock'
 
+import popsiql from './popsiql'
 import popRamda from './ramda'
 
 
-rsql = popRamda parse1, {
-	getData: () -> data
-}
+# rsql = popRamda parse1, {
+# 	getData: () -> data
+# }
 
 
 # newRsql = () ->
@@ -52,6 +53,47 @@ describe 'ramda', () ->
 
 		deepEq expected1, res
 		deepEq expected1Norm, normRes
+
+	it.only 'expected 2', () ->
+		# res = rsql query2
+		model =
+			Client:
+				projects: {entity: 'Project', key: 'Project.clientId'}
+			Project:
+				client: {entity: 'Client', key: 'Project.clientId'}
+
+		parse2 = popsiql.newF model, {}
+
+		data2 =
+			Customer:
+				1: {id: '1', name: 'cust1'}
+				2: {id: '2', name: 'cust1'}
+			Client:
+				1: {id: '1', name: 'c1', archived: false, rank: 'a', userId: '1', cid: '1'}
+				2: {id: '2', name: 'c2', archived: true, rank: 'c', cid: '1'}
+				3: {id: '3', name: 'c3', archived: true, rank: 'c', cid: '1'}
+				4: {id: '4', name: 'c4', archived: false, rank: 'd', cid: '1'}
+			Project:
+				1: {id: '1', name: 'p1', rate: null, clientId: '1', userId: '1', cid: '1'}
+				2: {id: '2', name: 'p2', rate: 102, clientId: '1', userId: '1', cid: '1'}
+				3: {id: '3', name: 'p3', rate: 89, clientId: '1', userId: '1', cid: '1'}
+				4: {id: '4', name: 'p4', rate: 102, clientId: '2', userId: '1', cid: '1'}
+				# 5: {id: '5', name: 'p5', rate: 101, clientId: '4', userId: '2', cid: '1'}
+				5: {id: '5', name: 'p5', rate: 101, clientId: '4', userId: null, cid: '1'}
+			User:
+				1: {id: '1', name: 'u1', email: 'u1@a.com', nickname: 'nick', cid: '1'}
+				2: {id: '2', name: 'u2', email: 'u1@a.com', nickname: 'nick', cid: '1'}
+				3: {id: '3', name: 'u3', email: 'u1@a.com', nickname: 'sick', cid: '1'}
+
+		rsql2 = popRamda parse2, {getData: () -> data}
+
+		query2 =
+			clients: _ {name: 1},
+				projects: _ {name: 1}
+
+		res = rsql2 query2
+
+		deepEq {}, res
 
 	# describe 'write', ->
 	# 	# TODO

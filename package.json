@@ -7,7 +7,7 @@
   "scripts": {
     "test": "npm-run-all clean-temp --parallel webpack-test jest trap",
     "webpack-test": "webpack --watch",
-    "jest": "jest --watchAll",
+    "jest": "jest --watchAll --verbose=false",
     "clean-temp": "rimraf ./temp",
     "trap": "../hack/temp_trap"
   },

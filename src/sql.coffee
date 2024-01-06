@@ -1,4 +1,4 @@
-import append from "ramda/es/append"; import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import has from "ramda/es/has"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import insert from "ramda/es/insert"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import update from "ramda/es/update"; import values from "ramda/es/values"; import where from "ramda/es/where"; #auto_require: esramda
+import append from "ramda/es/append"; import both from "ramda/es/both"; import difference from "ramda/es/difference"; import equals from "ramda/es/equals"; import has from "ramda/es/has"; import head from "ramda/es/head"; import includes from "ramda/es/includes"; import insert from "ramda/es/insert"; import isEmpty from "ramda/es/isEmpty"; import isNil from "ramda/es/isNil"; import join from "ramda/es/join"; import keys from "ramda/es/keys"; import length from "ramda/es/length"; import map from "ramda/es/map"; import pick from "ramda/es/pick"; import pluck from "ramda/es/pluck"; import reject from "ramda/es/reject"; import replace from "ramda/es/replace"; import toLower from "ramda/es/toLower"; import toUpper from "ramda/es/toUpper"; import type from "ramda/es/type"; import update from "ramda/es/update"; import values from "ramda/es/values"; import where from "ramda/es/where"; #auto_require: esramda
 import {mapI, mapO, $, PromiseProps} from "ramda-extras" #auto_require: esramda-extras
 
 _camelToSnake = (s) -> $ s, replace /[A-Z]/g, (s) -> '_' + toLower s
@@ -61,9 +61,12 @@ export default popSql = (parse, config_) ->
 		norm = if !parent then {} else parent.norm
 		fullRes = await PromiseProps $ fullSpec, mapO (spec, key) ->
 			if spec.relIdFromParent
-				Where = {id: {in: $ parent.res, pluck spec.relIdFromParent}, ...(spec.where || {})}
+				console.log 'parent.res', parent.res
+				console.log '2', $ parent.res, pluck(spec.relIdFromParent), reject(isNil)
+				Where = {id: {in: $ parent.res, pluck(spec.relIdFromParent), reject(isNil)}, ...(spec.where || {})}
 				params = []
 				[whereClause, whereParams] = getWhere Where
+				console.log 'whereParams', whereParams
 				params.push ...whereParams
 				sql = "SELECT #{getFields spec.allFields} FROM #{getTable spec.entity} WHERE #{whereClause}"
 
@@ -71,7 +74,9 @@ export default popSql = (parse, config_) ->
 				resById = byId res
 
 				for r in parent.res
-					r[key] = pick spec.allFields, resById[r[spec.relIdFromParent]]
+					fullData = resById[r[spec.relIdFromParent]]
+					if !fullData then r[key] = null
+					else r[key] = pick spec.allFields, fullData
 
 				return res
 
@@ -85,6 +90,7 @@ export default popSql = (parse, config_) ->
 			params = []
 			if !isEmpty Where
 				[whereClause, whereParams] = getWhere Where
+				console.log 'whereParams', whereParams
 				params.push ...whereParams
 				sql += " WHERE #{whereClause}"
 
